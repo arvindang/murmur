@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import KeyboardShortcuts
 import Defaults
 
@@ -37,10 +38,8 @@ final class AppState {
         }
         statusMessage = nil
         voiceEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
-        voiceEngine.selectedVoiceId = {
-            let id = Defaults[.selectedVoiceId]
-            return id.isEmpty ? nil : id
-        }()
+        let voiceId = Defaults[.selectedVoiceId]
+        voiceEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
         voiceEngine.speak(text)
     }
 
@@ -99,8 +98,7 @@ final class AppState {
     }
 
     /// Maps user-facing rate (0.5–2.0) to AVSpeechSynthesizer rate.
-    /// AVSpeechUtteranceDefaultSpeechRate = 0.5
     private static func avSpeechRate(from userRate: Double) -> Float {
-        Float(userRate) * 0.5
+        Float(userRate) * AVSpeechUtteranceDefaultSpeechRate
     }
 }

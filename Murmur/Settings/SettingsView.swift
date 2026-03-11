@@ -82,19 +82,15 @@ private struct VoiceTab: View {
         let voices: [VoiceInfo]
     }
 
+    private static let qualityLabels: [VoiceInfo.Quality: String] = [
+        .premium: "Premium", .enhanced: "Enhanced", .standard: "Standard",
+    ]
+
     private var groupedVoices: [VoiceGroup] {
-        let voices = appState.availableVoices
-        var groups: [VoiceGroup] = []
-
-        let premium = voices.filter { $0.quality == .premium }
-        if !premium.isEmpty { groups.append(VoiceGroup(label: "Premium", voices: premium)) }
-
-        let enhanced = voices.filter { $0.quality == .enhanced }
-        if !enhanced.isEmpty { groups.append(VoiceGroup(label: "Enhanced", voices: enhanced)) }
-
-        let standard = voices.filter { $0.quality == .standard }
-        if !standard.isEmpty { groups.append(VoiceGroup(label: "Standard", voices: standard)) }
-
-        return groups
+        let grouped = Dictionary(grouping: appState.availableVoices, by: \.quality)
+        return [VoiceInfo.Quality.premium, .enhanced, .standard].compactMap { quality in
+            guard let voices = grouped[quality], !voices.isEmpty else { return nil }
+            return VoiceGroup(label: Self.qualityLabels[quality]!, voices: voices)
+        }
     }
 }

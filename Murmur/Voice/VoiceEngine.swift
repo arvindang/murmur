@@ -14,14 +14,13 @@ struct VoiceInfo: Identifiable, Sendable, Hashable {
     let language: String
     let quality: Quality
 
-    enum Quality: String, Sendable, Comparable {
-        case standard
-        case enhanced
-        case premium
+    enum Quality: Int, Sendable, Comparable {
+        case standard = 0
+        case enhanced = 1
+        case premium = 2
 
         static func < (lhs: Quality, rhs: Quality) -> Bool {
-            let order: [Quality] = [.standard, .enhanced, .premium]
-            return order.firstIndex(of: lhs)! < order.firstIndex(of: rhs)!
+            lhs.rawValue < rhs.rawValue
         }
     }
 }

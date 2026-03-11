@@ -37,9 +37,7 @@ enum ClipboardExtractor {
             .joined(separator: "\n")
 
         // Collapse 3+ blank lines to double
-        while cleaned.contains("\n\n\n") {
-            cleaned = cleaned.replacingOccurrences(of: "\n\n\n", with: "\n\n")
-        }
+        cleaned = cleaned.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
 
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
 

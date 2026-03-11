@@ -52,15 +52,8 @@ final class SystemVoiceEngine: NSObject, VoiceEngine {
         setPlaybackState(.idle)
     }
 
-    var availableVoices: [VoiceInfo] {
-        AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language.hasPrefix("en") }
-            .sorted { lhs, rhs in
-                if lhs.quality != rhs.quality {
-                    return lhs.quality.rawValue > rhs.quality.rawValue
-                }
-                return lhs.name < rhs.name
-            }
+    private(set) lazy var availableVoices: [VoiceInfo] = {
+        Self.englishVoices()
             .map { voice in
                 VoiceInfo(
                     id: voice.identifier,
@@ -69,7 +62,13 @@ final class SystemVoiceEngine: NSObject, VoiceEngine {
                     quality: Self.mapQuality(voice.quality)
                 )
             }
-    }
+            .sorted { lhs, rhs in
+                if lhs.quality != rhs.quality {
+                    return lhs.quality > rhs.quality
+                }
+                return lhs.name < rhs.name
+            }
+    }()
 
     // MARK: - Private
 
@@ -78,9 +77,13 @@ final class SystemVoiceEngine: NSObject, VoiceEngine {
         onStateChange?(state)
     }
 
-    private static func bestAvailableVoice() -> AVSpeechSynthesisVoice? {
+    private static func englishVoices() -> [AVSpeechSynthesisVoice] {
         AVSpeechSynthesisVoice.speechVoices()
             .filter { $0.language.hasPrefix("en") }
+    }
+
+    private static func bestAvailableVoice() -> AVSpeechSynthesisVoice? {
+        englishVoices()
             .sorted { $0.quality.rawValue > $1.quality.rawValue }
             .first
     }
