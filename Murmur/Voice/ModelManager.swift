@@ -12,28 +12,50 @@ enum ModelState: Sendable, Equatable {
 @Observable
 final class ModelManager {
 
-    private(set) var sopranoModelState: ModelState = .notDownloaded
+    private(set) var modelStates: [MurmurModel: ModelState] = [:]
 
-    private static let modelId = "mlx-community/Soprano-80M-bf16"
-
-    func checkModelAvailability() {
-        let cacheDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".cache/huggingface/hub/models--mlx-community--Soprano-80M-bf16")
-        if FileManager.default.fileExists(atPath: cacheDir.path) {
-            sopranoModelState = .downloaded
-        } else {
-            sopranoModelState = .notDownloaded
+    init() {
+        for model in MurmurModel.allCases {
+            checkModelAvailability(for: model)
         }
     }
 
-    func downloadModel() async {
-        guard sopranoModelState != .downloading else { return }
-        sopranoModelState = .downloading
-        do {
-            let _ = try await SopranoModel.fromPretrained(Self.modelId)
-            sopranoModelState = .downloaded
-        } catch {
-            sopranoModelState = .error(error.localizedDescription)
+    func state(for model: MurmurModel) -> ModelState {
+        modelStates[model] ?? .notDownloaded
+    }
+
+    func checkModelAvailability(for model: MurmurModel) {
+        let cacheDir = cacheDirectory(for: model)
+        if FileManager.default.fileExists(atPath: cacheDir.path) {
+            modelStates[model] = .downloaded
+        } else {
+            modelStates[model] = .notDownloaded
         }
+    }
+
+    func downloadModel(_ model: MurmurModel) async {
+        guard state(for: model) != .downloading else { return }
+        modelStates[model] = .downloading
+        do {
+            let _ = try await TTS.loadModel(
+                modelRepo: model.modelRepo,
+                modelType: model.modelType
+            )
+            modelStates[model] = .downloaded
+        } catch {
+            modelStates[model] = .error(error.localizedDescription)
+        }
+    }
+
+    func deleteModel(_ model: MurmurModel) {
+        let cacheDir = cacheDirectory(for: model)
+        try? FileManager.default.removeItem(at: cacheDir)
+        modelStates[model] = .notDownloaded
+    }
+
+    private func cacheDirectory(for model: MurmurModel) -> URL {
+        let repoSlug = model.modelRepo.replacingOccurrences(of: "/", with: "--")
+        return FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".cache/huggingface/hub/models--\(repoSlug)")
     }
 }

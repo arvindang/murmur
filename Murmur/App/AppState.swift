@@ -19,14 +19,20 @@ final class AppState {
 
     init() {
         let engineType = Defaults[.voiceEngineType]
-        if engineType == .soprano {
-            activeEngine = SopranoEngine()
+        if engineType == .murmur {
+            let model = Defaults[.murmurModel]
+            activeEngine = MLXTTSEngine(model: model)
         } else {
             activeEngine = SystemVoiceEngine()
         }
         setupVoiceEngine()
         setupHotkeys()
-        modelManager.checkModelAvailability()
+
+        // Migrate legacy .soprano preference to .murmur
+        if let raw = UserDefaults.standard.string(forKey: "voiceEngineType"), raw == "soprano" {
+            Defaults[.voiceEngineType] = .murmur
+            Defaults[.murmurModel] = .soprano
+        }
     }
 
     // MARK: - Actions
@@ -50,9 +56,12 @@ final class AppState {
         }
 
         let engineType = Defaults[.voiceEngineType]
-        if engineType == .soprano && modelManager.sopranoModelState != .downloaded {
-            statusMessage = "Soprano model not downloaded — open Settings to download"
-            return
+        if engineType == .murmur {
+            let model = Defaults[.murmurModel]
+            if modelManager.state(for: model) != .downloaded {
+                statusMessage = "\(model.displayName) model not downloaded — open Settings to download"
+                return
+            }
         }
 
         statusMessage = nil
@@ -62,9 +71,10 @@ final class AppState {
             activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
             let voiceId = Defaults[.selectedVoiceId]
             activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
-        case .soprano:
+        case .murmur:
             activeEngine.rate = Float(Defaults[.speakingRate])
-            activeEngine.selectedVoiceId = nil
+            let voiceId = Defaults[.murmurVoiceId]
+            activeEngine.selectedVoiceId = voiceId
         }
 
         activeEngine.speak(text)
@@ -88,10 +98,19 @@ final class AppState {
             activeEngine.selectedVoiceId = id.isEmpty ? nil : id
             activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
         } else {
-            activeEngine.selectedVoiceId = nil
+            activeEngine.selectedVoiceId = id.isEmpty ? nil : id
             activeEngine.rate = Float(Defaults[.speakingRate])
         }
         activeEngine.speak("Hello! This is how I sound. I'm Murmur, your reading assistant.")
+    }
+
+    func deleteModel(_ model: MurmurModel) {
+        activeEngine.stop()
+        modelManager.deleteModel(model)
+        // If we deleted the currently selected murmur model, switch to system
+        if Defaults[.murmurModel] == model {
+            switchEngine(to: .system)
+        }
     }
 
     func switchEngine(to type: VoiceEngineType) {
@@ -101,10 +120,19 @@ final class AppState {
         switch type {
         case .system:
             activeEngine = SystemVoiceEngine()
-        case .soprano:
-            activeEngine = SopranoEngine()
+        case .murmur:
+            let model = Defaults[.murmurModel]
+            activeEngine = MLXTTSEngine(model: model)
         }
 
+        setupVoiceEngine()
+    }
+
+    func switchMurmurModel(to model: MurmurModel) {
+        activeEngine.stop()
+        Defaults[.murmurModel] = model
+        Defaults[.murmurVoiceId] = model.defaultVoices.first?.id ?? "default"
+        activeEngine = MLXTTSEngine(model: model)
         setupVoiceEngine()
     }
 

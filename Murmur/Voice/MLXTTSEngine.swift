@@ -4,14 +4,15 @@ import MLXAudioTTS
 import MLXLMCommon
 
 @MainActor
-final class SopranoEngine: NSObject, VoiceEngine {
+final class MLXTTSEngine: NSObject, VoiceEngine {
 
     private(set) var playbackState: PlaybackState = .idle
     var onStateChange: ((PlaybackState) -> Void)?
     var selectedVoiceId: String?
     var rate: Float = 1.0
 
-    private var model: SopranoModel?
+    let modelConfig: MurmurModel
+    private var model: (any SpeechGenerationModel)?
     private var generationTask: Task<Void, Never>?
     private var audioEngine: AVAudioEngine?
     private var playerNode: AVAudioPlayerNode?
@@ -19,7 +20,11 @@ final class SopranoEngine: NSObject, VoiceEngine {
     private var idleTimer: Timer?
 
     private static let idleTimeout: TimeInterval = 300 // 5 minutes
-    private static let modelId = "mlx-community/Soprano-80M-bf16"
+
+    init(model: MurmurModel) {
+        self.modelConfig = model
+        super.init()
+    }
 
     // MARK: - VoiceEngine
 
@@ -80,19 +85,16 @@ final class SopranoEngine: NSObject, VoiceEngine {
         }
     }
 
-    private(set) lazy var availableVoices: [VoiceInfo] = [
-        VoiceInfo(id: "default", name: "Soprano", language: "English", quality: .premium)
-    ]
+    private(set) lazy var availableVoices: [VoiceInfo] = modelConfig.defaultVoices
 
     // MARK: - Model Management
 
-    static func loadModel() async throws -> SopranoModel {
-        try await SopranoModel.fromPretrained(modelId)
-    }
-
     private func ensureModelLoaded() async throws {
         if model == nil {
-            model = try await Self.loadModel()
+            model = try await TTS.loadModel(
+                modelRepo: modelConfig.modelRepo,
+                modelType: modelConfig.modelType
+            )
         }
     }
 
@@ -129,9 +131,11 @@ final class SopranoEngine: NSObject, VoiceEngine {
     private func synthesizeAndPlay(_ text: String) async throws {
         guard let model, let playerNode, let audioEngine else { return }
 
+        let voice = selectedVoiceId ?? "default"
+
         let stream = model.generatePCMBufferStream(
             text: text,
-            voice: "default",
+            voice: voice,
             refAudio: nil,
             refText: nil,
             language: nil
