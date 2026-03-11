@@ -19,6 +19,7 @@ struct MurmurApp: App {
         Settings {
             SettingsView()
                 .environment(appState)
+                .tint(Color.murmurAmber)
         }
     }
 }

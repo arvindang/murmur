@@ -17,13 +17,16 @@
 		6C7725DC06C653E4D2C40AF0 /* SopranoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BFCBBBEEA4843D83BD414D9 /* SopranoEngine.swift */; };
 		8895D96CC5D6FA0BF39FCEF9 /* MLXAudioTTS in Frameworks */ = {isa = PBXBuildFile; productRef = 33F7C9D880A6F670FF6D3025 /* MLXAudioTTS */; };
 		92E4016D915EA080EA0823A4 /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 563D0F1F48A3BF206ADE39A6 /* LaunchAtLogin */; };
+		9AFC3CED5DF0B9AD047A5BD5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CB0498FA2C5E06507C2E9F /* Theme.swift */; };
 		AAB2D36AEE448B774DCB4648 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C0B02ADBA4E9E0B2C201AD /* ModelManager.swift */; };
+		ABAFC95F01025AAD22F4EDA3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05966A5726A2A79EA73AB8BA /* Assets.xcassets */; };
 		B4D8741D71D242ABC5223987 /* MurmurApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56634B3B5D3BF1AE378F4D4C /* MurmurApp.swift */; };
 		CCA6160297EC5A1677B8106D /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 4755A9F4C696CFA48D7D64A5 /* KeyboardShortcuts */; };
 		EC23DDCDAD72AACB7B229C34 /* SystemVoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB351C1BCBADA53BC0565AE1 /* SystemVoiceEngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		05966A5726A2A79EA73AB8BA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		07F39E158638D1E0ED600400 /* ClipboardExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardExtractor.swift; sourceTree = "<group>"; };
 		2A7760D5C4D0EE951AAD5AFE /* VoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceEngine.swift; sourceTree = "<group>"; };
 		3BFCBBBEEA4843D83BD414D9 /* SopranoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SopranoEngine.swift; sourceTree = "<group>"; };
@@ -35,6 +38,7 @@
 		98E504E0615EB91A3B9D9384 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		BB351C1BCBADA53BC0565AE1 /* SystemVoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemVoiceEngine.swift; sourceTree = "<group>"; };
 		C5702C2D6B3C04568EEF3BA6 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		C5CB0498FA2C5E06507C2E9F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		C834EC374C4A986C47F46292 /* Murmur.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Murmur.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDB381A779CDEF3E10B25E7A /* Murmur.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Murmur.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -65,6 +69,7 @@
 		0C213C3B30DA64EAF7632B7D /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				05966A5726A2A79EA73AB8BA /* Assets.xcassets */,
 				98E504E0615EB91A3B9D9384 /* Info.plist */,
 				EDB381A779CDEF3E10B25E7A /* Murmur.entitlements */,
 			);
@@ -96,6 +101,7 @@
 				C5702C2D6B3C04568EEF3BA6 /* AppState.swift */,
 				90E479EE18A58851E8D1F22B /* MenuBarView.swift */,
 				56634B3B5D3BF1AE378F4D4C /* MurmurApp.swift */,
+				C5CB0498FA2C5E06507C2E9F /* Theme.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -137,6 +143,7 @@
 			buildConfigurationList = EDB1F9ED9EE411689FF7A246 /* Build configuration list for PBXNativeTarget "Murmur" */;
 			buildPhases = (
 				55FA5046E9EFCAD54C9E8A85 /* Sources */,
+				5D518C0DA7FA93F54066B380 /* Resources */,
 				D9FDE2E088591FE29B875987 /* Frameworks */,
 			);
 			buildRules = (
@@ -188,6 +195,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		5D518C0DA7FA93F54066B380 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ABAFC95F01025AAD22F4EDA3 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		55FA5046E9EFCAD54C9E8A85 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -202,6 +220,7 @@
 				1ECEB6CEC3C683A38B8CFCB0 /* SettingsView.swift in Sources */,
 				6C7725DC06C653E4D2C40AF0 /* SopranoEngine.swift in Sources */,
 				EC23DDCDAD72AACB7B229C34 /* SystemVoiceEngine.swift in Sources */,
+				9AFC3CED5DF0B9AD047A5BD5 /* Theme.swift in Sources */,
 				5DCC8D7C22D3F81E30B659DF /* VoiceEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

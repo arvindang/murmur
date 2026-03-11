@@ -110,18 +110,6 @@ final class AppState {
 
     static var isOpeningSettings = false
 
-    func openSettings() {
-        Self.isOpeningSettings = true
-        NSApp.setActivationPolicy(.regular)
-        DispatchQueue.main.async {
-            NSApp.activate()
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                Self.isOpeningSettings = false
-            }
-        }
-    }
-
     // MARK: - Computed
 
     var menuBarIcon: String {

@@ -6,15 +6,15 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
-            Divider()
+            MurmurDivider()
 
             if appState.playbackState != .idle {
                 playbackControls
-                Divider()
+                MurmurDivider()
             }
 
             actions
-            Divider()
+            MurmurDivider()
             footer
         }
         .padding(12)
@@ -26,8 +26,13 @@ struct MenuBarView: View {
     private var header: some View {
         HStack {
             Image(systemName: "waveform")
+                .foregroundStyle(Color.murmurAmber)
+                .symbolEffect(
+                    .variableColor.iterative,
+                    isActive: appState.playbackState == .speaking
+                )
             Text("Murmur")
-                .font(.headline)
+                .font(.title3.weight(.semibold))
             Spacer()
             if let message = appState.statusMessage {
                 Text(message)
@@ -51,16 +56,22 @@ struct MenuBarView: View {
                     systemImage: appState.playbackState == .paused ? "play.fill" : "pause.fill"
                 )
             }
+            .buttonStyle(MurmurControlButtonStyle(tint: Color.murmurAmber))
 
             Button {
                 appState.stopPlayback()
             } label: {
                 Label("Stop", systemImage: "stop.fill")
             }
+            .buttonStyle(MurmurControlButtonStyle(tint: Color.murmurEmber))
 
             Spacer()
         }
-        .buttonStyle(.bordered)
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.04))
+        )
     }
 
     private var actions: some View {
@@ -69,16 +80,16 @@ struct MenuBarView: View {
         } label: {
             Label("Read Clipboard", systemImage: "doc.on.clipboard")
         }
+        .buttonStyle(MurmurPrimaryButtonStyle())
         .keyboardShortcut("l", modifiers: [.command, .shift])
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                appState.openSettings()
-            } label: {
+        VStack(alignment: .leading, spacing: 2) {
+            SettingsLink {
                 Label("Settings...", systemImage: "gear")
             }
+            .buttonStyle(MurmurMenuRowStyle())
             .keyboardShortcut(",")
 
             Button {
@@ -86,6 +97,7 @@ struct MenuBarView: View {
             } label: {
                 Label("Quit Murmur", systemImage: "power")
             }
+            .buttonStyle(MurmurMenuRowStyle())
             .keyboardShortcut("q")
         }
     }

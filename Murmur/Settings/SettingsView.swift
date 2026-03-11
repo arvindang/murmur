@@ -17,6 +17,14 @@ struct SettingsView: View {
                 }
         }
         .frame(width: 450, height: 400)
+        .onAppear {
+            AppState.isOpeningSettings = true
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                AppState.isOpeningSettings = false
+            }
+        }
     }
 }
 
@@ -118,7 +126,7 @@ private struct SopranoModelRow: View {
 
             case .downloaded:
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.murmurAmber)
                 Text("Ready")
                     .foregroundStyle(.secondary)
 
