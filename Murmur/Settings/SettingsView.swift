@@ -50,7 +50,6 @@ private struct GeneralTab: View {
 private struct VoiceTab: View {
     @Environment(AppState.self) private var appState
     @Default(.voiceEngineType) private var engineType
-    @Default(.selectedVoiceId) private var selectedVoiceId
     @Default(.speakingRate) private var speakingRate
 
     var body: some View {
@@ -72,15 +71,15 @@ private struct VoiceTab: View {
 
             Section("Voice") {
                 if engineType == .system {
-                    SystemVoicePicker(selectedVoiceId: $selectedVoiceId)
+                    Text("System Default")
+                        .foregroundStyle(.secondary)
                 } else {
                     Text("Soprano")
                         .foregroundStyle(.secondary)
                 }
 
                 Button("Preview Voice") {
-                    let voiceId = engineType == .system ? selectedVoiceId : ""
-                    appState.previewVoice(id: voiceId)
+                    appState.previewVoice(id: "")
                 }
                 .disabled(appState.playbackState == .speaking ||
                           (engineType == .soprano && appState.modelManager.sopranoModelState != .downloaded))
@@ -112,7 +111,7 @@ private struct SopranoModelRow: View {
 
             switch appState.modelManager.sopranoModelState {
             case .notDownloaded:
-                Button("Download") {
+                Button("Download (~160 MB)") {
                     Task {
                         await appState.modelManager.downloadModel()
                     }
@@ -127,7 +126,7 @@ private struct SopranoModelRow: View {
             case .downloaded:
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color.murmurAmber)
-                Text("Ready")
+                Text("Ready (~160 MB)")
                     .foregroundStyle(.secondary)
 
             case .error(let message):
@@ -146,40 +145,3 @@ private struct SopranoModelRow: View {
     }
 }
 
-// MARK: - System Voice Picker
-
-private struct SystemVoicePicker: View {
-    @Environment(AppState.self) private var appState
-    @Binding var selectedVoiceId: String
-
-    private static let qualityLabels: [VoiceInfo.Quality: String] = [
-        .premium: "Premium", .enhanced: "Enhanced", .standard: "Standard",
-    ]
-
-    var body: some View {
-        Picker("Voice:", selection: $selectedVoiceId) {
-            Text("System Default").tag("")
-
-            ForEach(groupedVoices, id: \.label) { group in
-                Section(group.label) {
-                    ForEach(group.voices) { voice in
-                        Text(voice.name).tag(voice.id)
-                    }
-                }
-            }
-        }
-    }
-
-    private struct VoiceGroup {
-        let label: String
-        let voices: [VoiceInfo]
-    }
-
-    private var groupedVoices: [VoiceGroup] {
-        let grouped = Dictionary(grouping: appState.availableVoices, by: \.quality)
-        return [VoiceInfo.Quality.premium, .enhanced, .standard].compactMap { quality in
-            guard let voices = grouped[quality], !voices.isEmpty else { return nil }
-            return VoiceGroup(label: Self.qualityLabels[quality]!, voices: voices)
-        }
-    }
-}
