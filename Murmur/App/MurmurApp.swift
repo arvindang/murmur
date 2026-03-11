@@ -42,7 +42,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resetActivationPolicyIfNeeded() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            guard !AppState.isOpeningSettings else { return }
             let hasKeyWindows = NSApp.windows.contains { $0.isVisible && $0.canBecomeKey && $0.level == .normal }
             if !hasKeyWindows {
                 NSApp.setActivationPolicy(.accessory)

@@ -13,6 +13,15 @@ struct VoiceInfo: Identifiable, Sendable, Hashable {
     let name: String
     let language: String
     let quality: Quality
+    let group: String?
+
+    init(id: String, name: String, language: String, quality: Quality, group: String? = nil) {
+        self.id = id
+        self.name = name
+        self.language = language
+        self.quality = quality
+        self.group = group
+    }
 
     enum Quality: Int, Sendable, Comparable {
         case standard = 0

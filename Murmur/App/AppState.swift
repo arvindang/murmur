@@ -10,11 +10,23 @@ final class AppState {
     private(set) var playbackState: PlaybackState = .idle
     var statusMessage: String?
 
-    private let voiceEngine = SystemVoiceEngine()
+    private var activeEngine: any VoiceEngine
+    let modelManager = ModelManager()
+
+    var currentEngineType: VoiceEngineType {
+        Defaults[.voiceEngineType]
+    }
 
     init() {
+        let engineType = Defaults[.voiceEngineType]
+        if engineType == .soprano {
+            activeEngine = SopranoEngine()
+        } else {
+            activeEngine = SystemVoiceEngine()
+        }
         setupVoiceEngine()
         setupHotkeys()
+        modelManager.checkModelAvailability()
     }
 
     // MARK: - Actions
@@ -24,9 +36,9 @@ final class AppState {
         case .idle:
             readClipboard()
         case .speaking:
-            voiceEngine.stop()
+            activeEngine.stop()
         case .paused:
-            voiceEngine.resume()
+            activeEngine.resume()
         }
     }
 
@@ -36,35 +48,78 @@ final class AppState {
             statusMessage = "No text in clipboard"
             return
         }
+
+        let engineType = Defaults[.voiceEngineType]
+        if engineType == .soprano && modelManager.sopranoModelState != .downloaded {
+            statusMessage = "Soprano model not downloaded — open Settings to download"
+            return
+        }
+
         statusMessage = nil
-        voiceEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
-        let voiceId = Defaults[.selectedVoiceId]
-        voiceEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
-        voiceEngine.speak(text)
+
+        switch engineType {
+        case .system:
+            activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
+            let voiceId = Defaults[.selectedVoiceId]
+            activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
+        case .soprano:
+            activeEngine.rate = Float(Defaults[.speakingRate])
+            activeEngine.selectedVoiceId = nil
+        }
+
+        activeEngine.speak(text)
     }
 
     func pausePlayback() {
-        voiceEngine.pause()
+        activeEngine.pause()
     }
 
     func resumePlayback() {
-        voiceEngine.resume()
+        activeEngine.resume()
     }
 
     func stopPlayback() {
-        voiceEngine.stop()
+        activeEngine.stop()
     }
 
     func previewVoice(id: String) {
-        voiceEngine.selectedVoiceId = id.isEmpty ? nil : id
-        voiceEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
-        voiceEngine.speak("Hello! This is how I sound. I'm Murmur, your reading assistant.")
+        let engineType = Defaults[.voiceEngineType]
+        if engineType == .system {
+            activeEngine.selectedVoiceId = id.isEmpty ? nil : id
+            activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
+        } else {
+            activeEngine.selectedVoiceId = nil
+            activeEngine.rate = Float(Defaults[.speakingRate])
+        }
+        activeEngine.speak("Hello! This is how I sound. I'm Murmur, your reading assistant.")
     }
 
+    func switchEngine(to type: VoiceEngineType) {
+        activeEngine.stop()
+        Defaults[.voiceEngineType] = type
+
+        switch type {
+        case .system:
+            activeEngine = SystemVoiceEngine()
+        case .soprano:
+            activeEngine = SopranoEngine()
+        }
+
+        setupVoiceEngine()
+    }
+
+    static var isOpeningSettings = false
+
     func openSettings() {
+        Self.isOpeningSettings = true
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        DispatchQueue.main.async {
+            NSApp.activate()
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Self.isOpeningSettings = false
+            }
+        }
     }
 
     // MARK: - Computed
@@ -78,13 +133,13 @@ final class AppState {
     }
 
     var availableVoices: [VoiceInfo] {
-        voiceEngine.availableVoices
+        activeEngine.availableVoices
     }
 
     // MARK: - Private
 
     private func setupVoiceEngine() {
-        voiceEngine.onStateChange = { [weak self] state in
+        activeEngine.onStateChange = { [weak self] state in
             self?.playbackState = state
         }
     }
@@ -97,7 +152,7 @@ final class AppState {
         }
     }
 
-    /// Maps user-facing rate (0.5–2.0) to AVSpeechSynthesizer rate.
+    /// Maps user-facing rate (0.5-2.0) to AVSpeechSynthesizer rate.
     private static func avSpeechRate(from userRate: Double) -> Float {
         Float(userRate) * AVSpeechUtteranceDefaultSpeechRate
     }
