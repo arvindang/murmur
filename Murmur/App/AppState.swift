@@ -65,18 +65,7 @@ final class AppState {
         }
 
         statusMessage = nil
-
-        switch engineType {
-        case .system:
-            activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
-            let voiceId = Defaults[.selectedVoiceId]
-            activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
-        case .murmur:
-            activeEngine.rate = Float(Defaults[.speakingRate])
-            let voiceId = Defaults[.murmurVoiceId]
-            activeEngine.selectedVoiceId = voiceId
-        }
-
+        configureActiveEngine()
         activeEngine.speak(text)
     }
 
@@ -93,14 +82,7 @@ final class AppState {
     }
 
     func previewVoice(id: String) {
-        let engineType = Defaults[.voiceEngineType]
-        if engineType == .system {
-            activeEngine.selectedVoiceId = id.isEmpty ? nil : id
-            activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
-        } else {
-            activeEngine.selectedVoiceId = id.isEmpty ? nil : id
-            activeEngine.rate = Float(Defaults[.speakingRate])
-        }
+        configureActiveEngine(voiceOverride: id)
         activeEngine.speak("Hello! This is how I sound. I'm Murmur, your reading assistant.")
     }
 
@@ -129,14 +111,13 @@ final class AppState {
     }
 
     func switchMurmurModel(to model: MurmurModel) {
+        guard model != Defaults[.murmurModel] else { return }
         activeEngine.stop()
         Defaults[.murmurModel] = model
         Defaults[.murmurVoiceId] = model.defaultVoices.first?.id ?? "default"
         activeEngine = MLXTTSEngine(model: model)
         setupVoiceEngine()
     }
-
-    static var isOpeningSettings = false
 
     // MARK: - Computed
 
@@ -165,6 +146,20 @@ final class AppState {
             Task { @MainActor in
                 self?.toggleReadAloud()
             }
+        }
+    }
+
+    private func configureActiveEngine(voiceOverride: String? = nil) {
+        let engineType = Defaults[.voiceEngineType]
+        switch engineType {
+        case .system:
+            activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
+            let voiceId = voiceOverride ?? Defaults[.selectedVoiceId]
+            activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
+        case .murmur:
+            activeEngine.rate = Float(Defaults[.speakingRate])
+            let voiceId = voiceOverride ?? Defaults[.murmurVoiceId]
+            activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
         }
     }
 

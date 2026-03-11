@@ -17,6 +17,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
     private var audioEngine: AVAudioEngine?
     private var playerNode: AVAudioPlayerNode?
     private var timePitchNode: AVAudioUnitTimePitch?
+    private var connectedFormat: AVAudioFormat?
     private var idleTimer: Timer?
 
     private static let idleTimeout: TimeInterval = 300 // 5 minutes
@@ -24,6 +25,12 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
     init(model: MurmurModel) {
         self.modelConfig = model
         super.init()
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            idleTimer?.invalidate()
+        }
     }
 
     // MARK: - VoiceEngine
@@ -38,7 +45,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
             do {
                 try await self.ensureModelLoaded()
                 let sentences = self.splitIntoSentences(text)
-                try self.setupAudioChain()
+                self.prepareAudioNodes()
 
                 for sentence in sentences {
                     if Task.isCancelled { break }
@@ -80,6 +87,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
         audioEngine = nil
         playerNode = nil
         timePitchNode = nil
+        connectedFormat = nil
         if playbackState != .idle {
             setPlaybackState(.idle)
         }
@@ -104,7 +112,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
 
     // MARK: - Audio Chain
 
-    private func setupAudioChain() throws {
+    private func prepareAudioNodes() {
         let engine = AVAudioEngine()
         let player = AVAudioPlayerNode()
         let timePitch = AVAudioUnitTimePitch()
@@ -114,22 +122,24 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
         engine.attach(player)
         engine.attach(timePitch)
 
-        let outputFormat = engine.mainMixerNode.outputFormat(forBus: 0)
-        engine.connect(player, to: timePitch, format: outputFormat)
-        engine.connect(timePitch, to: engine.mainMixerNode, format: outputFormat)
-
-        try engine.start()
-        player.play()
-
         self.audioEngine = engine
         self.playerNode = player
         self.timePitchNode = timePitch
     }
 
+    private func connectAndStart(format: AVAudioFormat) throws {
+        guard let engine = audioEngine, let player = playerNode, let timePitch = timePitchNode else { return }
+        engine.connect(player, to: timePitch, format: format)
+        engine.connect(timePitch, to: engine.mainMixerNode, format: format)
+        try engine.start()
+        player.play()
+        self.connectedFormat = format
+    }
+
     // MARK: - Synthesis
 
     private func synthesizeAndPlay(_ text: String) async throws {
-        guard let model, let playerNode, let audioEngine else { return }
+        guard let model, let playerNode else { return }
 
         let voice = selectedVoiceId ?? "default"
 
@@ -141,49 +151,23 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
             language: nil
         )
 
-        let outputFormat = audioEngine.mainMixerNode.outputFormat(forBus: 0)
-
         for try await buffer in stream {
             if Task.isCancelled { break }
 
-            if buffer.format.sampleRate != outputFormat.sampleRate ||
-               buffer.format.channelCount != outputFormat.channelCount {
-                if let converted = Self.convertBuffer(buffer, to: outputFormat) {
-                    await playerNode.scheduleBuffer(converted)
-                }
-            } else {
-                await playerNode.scheduleBuffer(buffer)
+            if connectedFormat == nil {
+                try connectAndStart(format: buffer.format)
             }
-        }
-    }
 
-    private static func convertBuffer(_ buffer: AVAudioPCMBuffer, to format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        guard let converter = AVAudioConverter(from: buffer.format, to: format) else { return nil }
-        let frameCapacity = AVAudioFrameCount(
-            Double(buffer.frameLength) * format.sampleRate / buffer.format.sampleRate
-        )
-        guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCapacity) else { return nil }
-
-        var error: NSError?
-        var consumed = false
-        converter.convert(to: outputBuffer, error: &error) { _, outStatus in
-            if consumed {
-                outStatus.pointee = .noDataNow
-                return nil
-            }
-            consumed = true
-            outStatus.pointee = .haveData
-            return buffer
+            await playerNode.scheduleBuffer(buffer)
         }
-        return error == nil ? outputBuffer : nil
     }
 
     private func waitForPlaybackCompletion() async {
-        guard let playerNode else { return }
+        guard let playerNode, let connectedFormat else { return }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             playerNode.scheduleBuffer(
                 AVAudioPCMBuffer(
-                    pcmFormat: playerNode.outputFormat(forBus: 0),
+                    pcmFormat: connectedFormat,
                     frameCapacity: 0
                 )!
             ) {

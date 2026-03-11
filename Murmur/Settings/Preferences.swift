@@ -63,11 +63,10 @@ enum MurmurModel: String, Defaults.Serializable, CaseIterable, Sendable {
     }
 
     var dropdownLabel: String {
-        switch self {
-        case .soprano: "Soprano — English (~160 MB)"
-        case .marvis: "Marvis TTS — EN, FR, DE (~250 MB)"
-        case .qwen3tts: "Qwen3-TTS — 10 languages (~500 MB)"
-        }
+        let langs = supportedLanguages.count <= 3
+            ? supportedLanguages.joined(separator: ", ")
+            : "\(supportedLanguages.count) languages"
+        return "\(displayName) — \(langs) (\(approxSize))"
     }
 
     var defaultVoices: [VoiceInfo] {

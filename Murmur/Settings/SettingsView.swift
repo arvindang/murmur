@@ -3,60 +3,52 @@ import Defaults
 import KeyboardShortcuts
 import LaunchAtLogin
 
-struct SettingsView: View {
-    var body: some View {
-        TabView {
-            GeneralTab()
-                .tabItem {
-                    Label("General", systemImage: "gear")
-                }
+// MARK: - Inline Settings View
 
-            VoiceTab()
-                .tabItem {
-                    Label("Voice", systemImage: "waveform")
-                }
-        }
-        .frame(width: 450, height: 400)
-        .onAppear {
-            AppState.isOpeningSettings = true
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                AppState.isOpeningSettings = false
-            }
-        }
-    }
-}
-
-// MARK: - General
-
-private struct GeneralTab: View {
-    var body: some View {
-        Form {
-            Section("Hotkey") {
-                KeyboardShortcuts.Recorder("Read Aloud:", name: .readAloud)
-            }
-
-            Section("Startup") {
-                LaunchAtLogin.Toggle("Launch at login")
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
-// MARK: - Voice
-
-private struct VoiceTab: View {
+struct InlineSettingsView: View {
     @Environment(AppState.self) private var appState
     @Default(.voiceEngineType) private var engineType
     @Default(.murmurModel) private var murmurModel
     @Default(.speakingRate) private var speakingRate
 
     var body: some View {
-        Form {
-            Section("Engine") {
-                Picker("Voice Engine:", selection: $engineType) {
+        VStack(alignment: .leading, spacing: 16) {
+            // General
+            generalSection
+            MurmurDivider()
+            // Voice
+            voiceSection
+        }
+        .padding(.top, 8)
+    }
+
+    // MARK: - General
+
+    private var generalSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            MurmurSectionHeader("General")
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Hotkey:")
+                        .frame(width: 70, alignment: .leading)
+                    KeyboardShortcuts.Recorder("", name: .readAloud)
+                }
+
+                LaunchAtLogin.Toggle("Launch at login")
+            }
+        }
+    }
+
+    // MARK: - Voice
+
+    private var voiceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            MurmurSectionHeader("Voice")
+
+            VStack(alignment: .leading, spacing: 10) {
+                // Engine picker
+                Picker("Engine:", selection: $engineType) {
                     Text("System Voices").tag(VoiceEngineType.system)
                     Text("Murmur Voice").tag(VoiceEngineType.murmur)
                 }
@@ -65,6 +57,7 @@ private struct VoiceTab: View {
                     appState.switchEngine(to: newValue)
                 }
 
+                // Model picker (murmur only)
                 if engineType == .murmur {
                     Picker("Model:", selection: $murmurModel) {
                         ForEach(MurmurModel.allCases, id: \.self) { model in
@@ -78,9 +71,10 @@ private struct VoiceTab: View {
 
                     ModelDetailView(model: murmurModel)
                 }
-            }
 
-            Section("Voice") {
+                MurmurDivider()
+
+                // Voice selection
                 if engineType == .system {
                     Text("System Default")
                         .foregroundStyle(.secondary)
@@ -88,6 +82,7 @@ private struct VoiceTab: View {
                     MurmurVoicePicker(model: murmurModel)
                 }
 
+                // Preview
                 Button("Preview Voice") {
                     let voiceId = engineType == .system
                         ? Defaults[.selectedVoiceId]
@@ -96,24 +91,26 @@ private struct VoiceTab: View {
                 }
                 .disabled(appState.playbackState == .speaking ||
                           (engineType == .murmur && appState.modelManager.state(for: murmurModel) != .downloaded))
-            }
 
-            Section("Speed") {
+                MurmurDivider()
+
+                // Speed
                 HStack {
+                    Text("Speed:")
                     Text("\(speakingRate, specifier: "%.2f")x")
                         .monospacedDigit()
-                        .frame(width: 50)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 45)
                     Slider(value: $speakingRate, in: 0.5...2.0, step: 0.25)
                 }
             }
         }
-        .formStyle(.grouped)
     }
 }
 
 // MARK: - Murmur Voice Picker
 
-private struct MurmurVoicePicker: View {
+struct MurmurVoicePicker: View {
     let model: MurmurModel
     @Default(.murmurVoiceId) private var murmurVoiceId
 
@@ -134,63 +131,72 @@ private struct MurmurVoicePicker: View {
 
 // MARK: - Model Detail View
 
-private struct ModelDetailView: View {
+struct ModelDetailView: View {
     @Environment(AppState.self) private var appState
     let model: MurmurModel
     @State private var showDeleteConfirmation = false
 
     var body: some View {
-        LabeledContent("Languages:") {
-            Text(model.supportedLanguages.joined(separator: ", "))
-                .foregroundStyle(.secondary)
-        }
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Languages:")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(model.supportedLanguages.joined(separator: ", "))
+                    .foregroundStyle(.secondary)
+            }
 
-        LabeledContent("Size:") {
-            Text(model.approxSize)
-                .foregroundStyle(.secondary)
-        }
+            HStack {
+                Text("Size:")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(model.approxSize)
+                    .foregroundStyle(.secondary)
+            }
 
-        HStack {
-            Text("Status:")
+            HStack {
+                Text("Status:")
+                    .foregroundStyle(.secondary)
 
-            Spacer()
+                Spacer()
 
-            switch appState.modelManager.state(for: model) {
-            case .notDownloaded:
-                Button("Download (\(model.approxSize))") {
-                    Task {
-                        await appState.modelManager.downloadModel(model)
+                switch appState.modelManager.state(for: model) {
+                case .notDownloaded:
+                    Button("Download (\(model.approxSize))") {
+                        Task {
+                            await appState.modelManager.downloadModel(model)
+                        }
                     }
-                }
 
-            case .downloading:
-                ProgressView()
-                    .controlSize(.small)
-                Text("Downloading...")
-                    .foregroundStyle(.secondary)
+                case .downloading:
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Downloading...")
+                        .foregroundStyle(.secondary)
 
-            case .downloaded:
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.murmurAmber)
-                Text("Ready")
-                    .foregroundStyle(.secondary)
-                Button(role: .destructive) {
-                    showDeleteConfirmation = true
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.borderless)
-                .help("Delete \(model.displayName) model")
+                case .downloaded:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.murmurAmber)
+                    Text("Ready")
+                        .foregroundStyle(.secondary)
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Delete \(model.displayName) model")
 
-            case .error(let message):
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.yellow)
-                Text("Error")
-                    .foregroundStyle(.secondary)
-                    .help(message)
-                Button("Retry") {
-                    Task {
-                        await appState.modelManager.downloadModel(model)
+                case .error(let message):
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text("Error")
+                        .foregroundStyle(.secondary)
+                        .help(message)
+                    Button("Retry") {
+                        Task {
+                            await appState.modelManager.downloadModel(model)
+                        }
                     }
                 }
             }

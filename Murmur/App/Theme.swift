@@ -83,6 +83,24 @@ struct MurmurMenuRowStyle: ButtonStyle {
     }
 }
 
+// MARK: - Section Header
+
+/// Uppercase section label for inline settings
+struct MurmurSectionHeader: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .tracking(0.5)
+    }
+}
+
 // MARK: - Divider
 
 /// Subtle 0.5pt divider

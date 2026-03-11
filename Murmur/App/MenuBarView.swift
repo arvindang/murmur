@@ -1,9 +1,30 @@
 import SwiftUI
 
+enum MenuBarPage {
+    case main
+    case settings
+}
+
 struct MenuBarView: View {
     @Environment(AppState.self) private var appState
+    @State private var currentPage: MenuBarPage = .main
 
     var body: some View {
+        Group {
+            switch currentPage {
+            case .main:
+                mainPage
+            case .settings:
+                settingsPage
+            }
+        }
+        .frame(width: 320)
+        .animation(.easeInOut(duration: 0.15), value: currentPage)
+    }
+
+    // MARK: - Main Page
+
+    private var mainPage: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
             MurmurDivider()
@@ -18,10 +39,52 @@ struct MenuBarView: View {
             footer
         }
         .padding(12)
-        .frame(width: 260)
     }
 
-    // MARK: - Sections
+    // MARK: - Settings Page
+
+    private var settingsPage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            settingsHeader
+            MurmurDivider()
+
+            ScrollView {
+                InlineSettingsView()
+                    .environment(appState)
+            }
+            .frame(maxHeight: 450)
+        }
+        .padding(12)
+        .tint(Color.murmurAmber)
+    }
+
+    private var settingsHeader: some View {
+        HStack {
+            Button {
+                currentPage = .main
+            } label: {
+                Label("Back", systemImage: "chevron.left")
+                    .font(.body.weight(.medium))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.murmurAmber)
+
+            Spacer()
+
+            Text("Settings")
+                .font(.title3.weight(.semibold))
+
+            Spacer()
+
+            // Invisible balance for centering
+            Label("Back", systemImage: "chevron.left")
+                .font(.body.weight(.medium))
+                .hidden()
+        }
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Main Page Sections
 
     private var header: some View {
         HStack {
@@ -86,7 +149,9 @@ struct MenuBarView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 2) {
-            SettingsLink {
+            Button {
+                currentPage = .settings
+            } label: {
                 Label("Settings...", systemImage: "gear")
             }
             .buttonStyle(MurmurMenuRowStyle())
