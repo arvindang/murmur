@@ -46,15 +46,19 @@ struct MenuBarView: View {
     private var settingsPage: some View {
         VStack(alignment: .leading, spacing: 0) {
             settingsHeader
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
             MurmurDivider()
 
             ScrollView {
                 InlineSettingsView()
                     .environment(appState)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
             }
             .frame(maxHeight: 450)
+            .clipped()
         }
-        .padding(12)
         .tint(Color.murmurAmber)
     }
 
