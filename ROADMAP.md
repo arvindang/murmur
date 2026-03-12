@@ -128,9 +128,9 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
   - VS Code/Electron apps: AXValue with fallback to clipboard simulation
 
 ### 2.2 — Browser-Specific Extraction
-- [ ] For Safari: AppleScript bridge to get page content
-- [ ] For Chrome: AppleScript → execute JS to get document.body.innerText
-- [ ] Reader-mode heuristic: strip nav, footer, sidebar content (simple main content area detection)
+- [x] For Safari: AppleScript bridge to get page content
+- [x] For Chrome: AppleScript → execute JS to get document.body.innerText
+- [x] Reader-mode heuristic: strip nav, footer, sidebar content (simple main content area detection)
 - [ ] Preference: "Read selected text" vs "Read full page/document"
 
 ### 2.3 — Smart Context Detection

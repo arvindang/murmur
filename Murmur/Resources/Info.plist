@@ -20,5 +20,7 @@
 	<true/>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Murmur needs automation access to read text from your browser.</string>
 </dict>
 </plist>
