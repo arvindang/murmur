@@ -95,4 +95,5 @@ extension Defaults.Keys {
     static let voiceEngineType = Key<VoiceEngineType>("voiceEngineType", default: .system)
     static let murmurModel = Key<MurmurModel>("murmurModel", default: .soprano)
     static let murmurVoiceId = Key<String>("murmurVoiceId", default: "default")
+    static let textSource = Key<TextSource>("textSource", default: .auto)
 }

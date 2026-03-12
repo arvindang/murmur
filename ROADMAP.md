@@ -115,12 +115,12 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 **Goal**: Automatically grab text from the frontmost app without requiring clipboard.
 
 ### 2.1 — Accessibility API Integration
-- [ ] Request Accessibility permissions on first launch (clear onboarding UI)
-- [ ] Integrate AXorcist for modern, async-friendly AXUIElement access
-- [ ] Get frontmost application via NSWorkspace.shared.frontmostApplication
-- [ ] Extract focused/selected text first (AXSelectedText attribute)
-- [ ] Fall back to full document text (AXValue on text areas, AXChildren traversal)
-- [ ] Handle common app patterns:
+- [x] Request Accessibility permissions on first launch (clear onboarding UI)
+- [x] Integrate AXorcist for modern, async-friendly AXUIElement access
+- [x] Get frontmost application via NSWorkspace.shared.frontmostApplication
+- [x] Extract focused/selected text first (AXSelectedText attribute)
+- [x] Fall back to full document text (AXValue on text areas, AXChildren traversal)
+- [x] Handle common app patterns:
   - Safari/Chrome: focused web content area → extract text
   - Notes/TextEdit: AXValue of main text view
   - Mail: message body text
@@ -134,10 +134,10 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 - [ ] Preference: "Read selected text" vs "Read full page/document"
 
 ### 2.3 — Smart Context Detection
-- [ ] Detect content type: article, email, code, chat thread, PDF
-- [ ] Adjust extraction strategy per content type
-- [ ] Show brief toast/notification: "Reading from Safari — 2 min article"
-- [ ] Handle edge case: no extractable text → show notification, don't fail silently
+- [x] Detect content type: article, email, code, chat thread, PDF
+- [x] Adjust extraction strategy per content type
+- [x] Show brief toast/notification: "Reading from Safari — 2 min article"
+- [x] Handle edge case: no extractable text → show notification, don't fail silently
 
 ### Phase 2 Ship Criteria
 - User focuses any app, hits ⌘⇧L, Murmur reads the visible/selected content

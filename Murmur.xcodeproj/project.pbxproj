@@ -7,16 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01C9A71156B7B96E609F92E1 /* TextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D22830A7BA4034E2DA83E63 /* TextExtractor.swift */; };
+		0C5CF1AE38A2E4B725AD796C /* AXorcist in Frameworks */ = {isa = PBXBuildFile; productRef = B2A580621052D91D05AC9DB1 /* AXorcist */; };
 		1ECEB6CEC3C683A38B8CFCB0 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6770C1B15A28CC35B18049A0 /* SettingsView.swift */; };
 		2468665AE503A5BFAF027B56 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E479EE18A58851E8D1F22B /* MenuBarView.swift */; };
 		24BABAC81816935A2E22BCA8 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53775387F79D53139E81F44D /* Preferences.swift */; };
 		2F70B1826D2A86D4933B4314 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5702C2D6B3C04568EEF3BA6 /* AppState.swift */; };
 		3D75F5CA7711DC31744777A1 /* ClipboardExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F39E158638D1E0ED600400 /* ClipboardExtractor.swift */; };
+		3E5204BB82D7B9589D405173 /* AccessibilityPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E24AAB9B59E720874D351C0B /* AccessibilityPermissionView.swift */; };
 		5DCC8D7C22D3F81E30B659DF /* VoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7760D5C4D0EE951AAD5AFE /* VoiceEngine.swift */; };
 		68CD4D751C1034533737645F /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 8212EA57220295EA0A73AA67 /* Defaults */; };
 		8895D96CC5D6FA0BF39FCEF9 /* MLXAudioTTS in Frameworks */ = {isa = PBXBuildFile; productRef = 33F7C9D880A6F670FF6D3025 /* MLXAudioTTS */; };
 		92E4016D915EA080EA0823A4 /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 563D0F1F48A3BF206ADE39A6 /* LaunchAtLogin */; };
 		9AFC3CED5DF0B9AD047A5BD5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CB0498FA2C5E06507C2E9F /* Theme.swift */; };
+		9C2388C2AD897CBB5F48E3C9 /* AccessibilityExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76E266F874E775473F5C558E /* AccessibilityExtractor.swift */; };
 		AAB2D36AEE448B774DCB4648 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C0B02ADBA4E9E0B2C201AD /* ModelManager.swift */; };
 		ABAFC95F01025AAD22F4EDA3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05966A5726A2A79EA73AB8BA /* Assets.xcassets */; };
 		B4D8741D71D242ABC5223987 /* MurmurApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56634B3B5D3BF1AE378F4D4C /* MurmurApp.swift */; };
@@ -32,7 +36,9 @@
 		2FCF22745A3260DDD2BA4FBA /* MLXTTSEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLXTTSEngine.swift; sourceTree = "<group>"; };
 		53775387F79D53139E81F44D /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		56634B3B5D3BF1AE378F4D4C /* MurmurApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MurmurApp.swift; sourceTree = "<group>"; };
+		5D22830A7BA4034E2DA83E63 /* TextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextExtractor.swift; sourceTree = "<group>"; };
 		6770C1B15A28CC35B18049A0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		76E266F874E775473F5C558E /* AccessibilityExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityExtractor.swift; sourceTree = "<group>"; };
 		80C0B02ADBA4E9E0B2C201AD /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
 		90E479EE18A58851E8D1F22B /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		98E504E0615EB91A3B9D9384 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -40,6 +46,7 @@
 		C5702C2D6B3C04568EEF3BA6 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		C5CB0498FA2C5E06507C2E9F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		C834EC374C4A986C47F46292 /* Murmur.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Murmur.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E24AAB9B59E720874D351C0B /* AccessibilityPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermissionView.swift; sourceTree = "<group>"; };
 		EDB381A779CDEF3E10B25E7A /* Murmur.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Murmur.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -52,6 +59,7 @@
 				92E4016D915EA080EA0823A4 /* LaunchAtLogin in Frameworks */,
 				68CD4D751C1034533737645F /* Defaults in Frameworks */,
 				8895D96CC5D6FA0BF39FCEF9 /* MLXAudioTTS in Frameworks */,
+				0C5CF1AE38A2E4B725AD796C /* AXorcist in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,7 +129,9 @@
 		E4B768BF79EB6C730B34A6A4 /* Extraction */ = {
 			isa = PBXGroup;
 			children = (
+				76E266F874E775473F5C558E /* AccessibilityExtractor.swift */,
 				07F39E158638D1E0ED600400 /* ClipboardExtractor.swift */,
+				5D22830A7BA4034E2DA83E63 /* TextExtractor.swift */,
 			);
 			path = Extraction;
 			sourceTree = "<group>";
@@ -129,6 +139,7 @@
 		E643222FE8B88F98124745ED /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				E24AAB9B59E720874D351C0B /* AccessibilityPermissionView.swift */,
 				53775387F79D53139E81F44D /* Preferences.swift */,
 				6770C1B15A28CC35B18049A0 /* SettingsView.swift */,
 			);
@@ -156,6 +167,7 @@
 				563D0F1F48A3BF206ADE39A6 /* LaunchAtLogin */,
 				8212EA57220295EA0A73AA67 /* Defaults */,
 				33F7C9D880A6F670FF6D3025 /* MLXAudioTTS */,
+				B2A580621052D91D05AC9DB1 /* AXorcist */,
 			);
 			productName = Murmur;
 			productReference = C834EC374C4A986C47F46292 /* Murmur.app */;
@@ -181,6 +193,7 @@
 			mainGroup = 55AFDC8326A0474CEB29A9C9;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				0DD816C6D2F6C3F7D6AA6E98 /* XCRemoteSwiftPackageReference "AXorcist" */,
 				6F149797DCCFBFCB920C4E6D /* XCRemoteSwiftPackageReference "Defaults" */,
 				68A09680EA56AD8543AE1FFC /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				86596CA00E85B6AFF6A69CBB /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
@@ -211,6 +224,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9C2388C2AD897CBB5F48E3C9 /* AccessibilityExtractor.swift in Sources */,
+				3E5204BB82D7B9589D405173 /* AccessibilityPermissionView.swift in Sources */,
 				2F70B1826D2A86D4933B4314 /* AppState.swift in Sources */,
 				3D75F5CA7711DC31744777A1 /* ClipboardExtractor.swift in Sources */,
 				EE919D0DA995260768DEAC17 /* MLXTTSEngine.swift in Sources */,
@@ -220,6 +235,7 @@
 				24BABAC81816935A2E22BCA8 /* Preferences.swift in Sources */,
 				1ECEB6CEC3C683A38B8CFCB0 /* SettingsView.swift in Sources */,
 				EC23DDCDAD72AACB7B229C34 /* SystemVoiceEngine.swift in Sources */,
+				01C9A71156B7B96E609F92E1 /* TextExtractor.swift in Sources */,
 				9AFC3CED5DF0B9AD047A5BD5 /* Theme.swift in Sources */,
 				5DCC8D7C22D3F81E30B659DF /* VoiceEngine.swift in Sources */,
 			);
@@ -411,6 +427,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		0DD816C6D2F6C3F7D6AA6E98 /* XCRemoteSwiftPackageReference "AXorcist" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/steipete/AXorcist";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.0;
+			};
+		};
 		1FBDA3E87B8F76165B204A76 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Blaizzy/mlx-audio-swift";
@@ -465,6 +489,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6F149797DCCFBFCB920C4E6D /* XCRemoteSwiftPackageReference "Defaults" */;
 			productName = Defaults;
+		};
+		B2A580621052D91D05AC9DB1 /* AXorcist */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0DD816C6D2F6C3F7D6AA6E98 /* XCRemoteSwiftPackageReference "AXorcist" */;
+			productName = AXorcist;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

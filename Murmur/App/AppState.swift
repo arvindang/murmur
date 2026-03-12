@@ -40,12 +40,48 @@ final class AppState {
     func toggleReadAloud() {
         switch playbackState {
         case .idle:
-            readClipboard()
+            readText()
         case .speaking:
             activeEngine.stop()
         case .paused:
             activeEngine.resume()
         }
+    }
+
+    func readText() {
+        let maxLength = Defaults[.maxTextLength]
+        let textSource = Defaults[.textSource]
+
+        let useAX = textSource == .auto || textSource == .accessibility
+        let useClipboard = textSource == .auto || textSource == .clipboard
+
+        let result: ExtractionResult? =
+            (useAX ? AccessibilityExtractor.extractText(maxLength: maxLength) : nil) ??
+            (useClipboard ? clipboardResult(maxLength: maxLength) : nil)
+
+        guard let result else {
+            statusMessage = textSource == .clipboard ? "No text in clipboard" : "No readable text found"
+            return
+        }
+
+        // Build status message
+        var parts: [String] = []
+        if let appName = result.appName {
+            parts.append("Reading from \(appName)")
+        } else if result.source == .clipboard {
+            parts.append("Reading clipboard")
+        }
+        if let hint = result.contentHint, hint != .unknown {
+            parts.append(result.readingTimeDescription + " " + hint.label)
+        }
+        statusMessage = parts.isEmpty ? nil : parts.joined(separator: " — ")
+
+        speakText(result.text)
+    }
+
+    private func clipboardResult(maxLength: Int) -> ExtractionResult? {
+        guard let text = ClipboardExtractor.extractText(maxLength: maxLength) else { return nil }
+        return ExtractionResult(text: text, source: .clipboard, appName: nil, contentHint: nil)
     }
 
     func readClipboard() {
@@ -54,7 +90,11 @@ final class AppState {
             statusMessage = "No text in clipboard"
             return
         }
+        statusMessage = "Reading clipboard"
+        speakText(text)
+    }
 
+    private func speakText(_ text: String) {
         let engineType = Defaults[.voiceEngineType]
         if engineType == .murmur {
             let model = Defaults[.murmurModel]
@@ -64,7 +104,6 @@ final class AppState {
             }
         }
 
-        statusMessage = nil
         configureActiveEngine()
         activeEngine.speak(text)
     }

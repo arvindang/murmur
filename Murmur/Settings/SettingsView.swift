@@ -10,11 +10,15 @@ struct InlineSettingsView: View {
     @Default(.voiceEngineType) private var engineType
     @Default(.murmurModel) private var murmurModel
     @Default(.speakingRate) private var speakingRate
+    @Default(.textSource) private var textSource
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // General
             generalSection
+            MurmurDivider()
+            // Text Source
+            textSourceSection
             MurmurDivider()
             // Voice
             voiceSection
@@ -36,6 +40,41 @@ struct InlineSettingsView: View {
                 }
 
                 LaunchAtLogin.Toggle("Launch at login")
+            }
+        }
+    }
+
+    // MARK: - Text Source
+
+    @ViewBuilder
+    private var textSourceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            MurmurSectionHeader("Text Source")
+
+            Picker("Source:", selection: $textSource) {
+                ForEach(TextSource.allCases, id: \.self) { source in
+                    Text(source.displayName).tag(source)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            switch textSource {
+            case .auto:
+                Text("Reads from the focused app, falls back to clipboard")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .accessibility:
+                Text("Reads directly from the focused app")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .clipboard:
+                Text("Only reads from the clipboard")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if textSource != .clipboard {
+                AccessibilityWarningRow()
             }
         }
     }
@@ -208,6 +247,35 @@ struct ModelDetailView: View {
             }
         } message: {
             Text("This will remove the model (\(model.approxSize)) and switch to System Voices. You can re-download it later.")
+        }
+    }
+}
+
+// MARK: - Accessibility Warning Row
+
+private struct AccessibilityWarningRow: View {
+    @State private var hasPermission = AccessibilityExtractor.hasPermission
+
+    var body: some View {
+        if !hasPermission {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Accessibility access required")
+                    .font(.caption)
+                Spacer()
+                Button("Grant") {
+                    AccessibilityExtractor.openAccessibilitySettings()
+                }
+                .controlSize(.small)
+            }
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(2))
+                    hasPermission = AccessibilityExtractor.hasPermission
+                    if hasPermission { break }
+                }
+            }
         }
     }
 }

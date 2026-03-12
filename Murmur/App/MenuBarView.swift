@@ -27,6 +27,7 @@ struct MenuBarView: View {
     private var mainPage: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
+            AccessibilityPermissionBanner()
             MurmurDivider()
 
             if appState.playbackState != .idle {
@@ -142,13 +143,22 @@ struct MenuBarView: View {
     }
 
     private var actions: some View {
-        Button {
-            appState.readClipboard()
-        } label: {
-            Label("Read Clipboard", systemImage: "doc.on.clipboard")
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                appState.readText()
+            } label: {
+                Label("Read Aloud", systemImage: "speaker.wave.2")
+            }
+            .buttonStyle(MurmurPrimaryButtonStyle())
+            .keyboardShortcut("l", modifiers: [.command, .shift])
+
+            Button {
+                appState.readClipboard()
+            } label: {
+                Label("Read Clipboard", systemImage: "doc.on.clipboard")
+            }
+            .buttonStyle(MurmurMenuRowStyle())
         }
-        .buttonStyle(MurmurPrimaryButtonStyle())
-        .keyboardShortcut("l", modifiers: [.command, .shift])
     }
 
     private var footer: some View {

@@ -24,6 +24,9 @@ packages:
   MLXAudio:
     url: https://github.com/Blaizzy/mlx-audio-swift
     from: "0.1.0"
+  AXorcist:
+    url: https://github.com/steipete/AXorcist
+    from: "0.1.0"
 
 targets:
   Murmur:
@@ -43,3 +46,4 @@ targets:
       - package: Defaults
       - package: MLXAudio
         product: MLXAudioTTS
+      - package: AXorcist

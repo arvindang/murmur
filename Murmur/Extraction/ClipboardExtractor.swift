@@ -30,7 +30,7 @@ enum ClipboardExtractor {
 
     // MARK: - Private
 
-    private static func clean(_ text: String, maxLength: Int) -> String? {
+    static func clean(_ text: String, maxLength: Int) -> String? {
         var cleaned = text
             .components(separatedBy: .newlines)
             .map { $0.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression) }
