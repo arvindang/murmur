@@ -75,6 +75,7 @@ struct InlineSettingsView: View {
 
             if textSource != .clipboard {
                 AccessibilityWarningRow()
+                BrowserAutomationNote()
             }
         }
     }
@@ -247,6 +248,20 @@ struct ModelDetailView: View {
             }
         } message: {
             Text("This will remove the model (\(model.approxSize)) and switch to System Voices. You can re-download it later.")
+        }
+    }
+}
+
+// MARK: - Browser Automation Note
+
+private struct BrowserAutomationNote: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(.secondary)
+            Text("Murmur reads web articles by fetching page content directly. Grant Automation access when prompted for best results.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }

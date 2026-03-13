@@ -72,15 +72,22 @@ enum AccessibilityExtractor {
 
     // MARK: - Document Text Extraction
 
-    private static let textRoles: Set<String> = ["AXTextArea", "AXTextField", "AXStaticText", "AXWebArea"]
-    private static let maxNodeVisits = 200
+    private static let textRoles: Set<String> = ["AXTextArea", "AXTextField", "AXStaticText"]
+    private static let noisyRoleDescriptions: Set<String> = ["navigation", "banner", "contentinfo", "complementary", "footer", "nav"]
+    private static let maxNodeVisits = 500 // Increased for deeper web trees
 
     private static func extractDocumentText(from app: Element, maxLength: Int, maxDepth: Int) -> String? {
         guard let window = app.focusedWindow() else { return nil }
 
         var collected: [String] = []
         var nodesVisited = 0
-        collectText(from: window, into: &collected, maxDepth: maxDepth, currentDepth: 0, nodesVisited: &nodesVisited)
+
+        // Try to find a 'main' landmark first for a very targeted extraction
+        if let mainLandmark = findMainLandmark(in: window) {
+            collectText(from: mainLandmark, into: &collected, maxDepth: maxDepth, currentDepth: 0, nodesVisited: &nodesVisited)
+        } else {
+            collectText(from: window, into: &collected, maxDepth: maxDepth, currentDepth: 0, nodesVisited: &nodesVisited)
+        }
 
         let joined = collected.joined(separator: "\n")
         guard !joined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
@@ -88,11 +95,33 @@ enum AccessibilityExtractor {
         return ClipboardExtractor.clean(joined, maxLength: maxLength)
     }
 
+    private static func findMainLandmark(in element: Element) -> Element? {
+        if let desc = element.roleDescription(),
+           desc.lowercased() == "main" {
+            return element
+        }
+
+        guard let children = element.children() else { return nil }
+        for child in children {
+            if let found = findMainLandmark(in: child) {
+                return found
+            }
+        }
+        return nil
+    }
+
     private static func collectText(from element: Element, into texts: inout [String], maxDepth: Int, currentDepth: Int, nodesVisited: inout Int) {
         guard currentDepth < maxDepth, nodesVisited < maxNodeVisits else { return }
         nodesVisited += 1
 
         let role = element.role() ?? ""
+
+        // Skip noisy areas like navigation, footer, etc.
+        if let desc = element.roleDescription() {
+            if noisyRoleDescriptions.contains(desc.lowercased()) {
+                return
+            }
+        }
 
         if textRoles.contains(role) {
             if let value = element.stringValue(),

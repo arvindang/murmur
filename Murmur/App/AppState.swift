@@ -55,8 +55,34 @@ final class AppState {
         let useAX = textSource == .auto || textSource == .accessibility
         let useClipboard = textSource == .auto || textSource == .clipboard
 
+        // Browser path is async (URL fetch + Readability), handle separately
+        let app = useAX ? NSWorkspace.shared.frontmostApplication : nil
+        let bundleId = app?.bundleIdentifier
+        let isBrowser = bundleId.map { BrowserExtractor.isBrowser(bundleId: $0) } ?? false
+
+        if isBrowser {
+            statusMessage = "Extracting text..."
+            Task {
+                var result: ExtractionResult?
+                if let bundleId {
+                    result = await BrowserExtractor.extractText(bundleId: bundleId, appName: app?.localizedName, maxLength: maxLength)
+                }
+                // Fall through to AX / clipboard if browser extraction returned nil
+                if result == nil {
+                    result = (useAX ? AccessibilityExtractor.extractText(maxLength: maxLength) : nil)
+                             ?? (useClipboard ? clipboardResult(maxLength: maxLength) : nil)
+                }
+                guard let result else {
+                    statusMessage = "No readable text found"
+                    return
+                }
+                buildStatusAndSpeak(result: result)
+            }
+            return
+        }
+
+        // Non-browser path stays synchronous
         let result: ExtractionResult? =
-            (useAX ? browserResult(maxLength: maxLength) : nil) ??
             (useAX ? AccessibilityExtractor.extractText(maxLength: maxLength) : nil) ??
             (useClipboard ? clipboardResult(maxLength: maxLength) : nil)
 
@@ -65,7 +91,10 @@ final class AppState {
             return
         }
 
-        // Build status message
+        buildStatusAndSpeak(result: result)
+    }
+
+    private func buildStatusAndSpeak(result: ExtractionResult) {
         var parts: [String] = []
         if let appName = result.appName {
             parts.append("Reading from \(appName)")
@@ -78,15 +107,6 @@ final class AppState {
         statusMessage = parts.isEmpty ? nil : parts.joined(separator: " — ")
 
         speakText(result.text)
-    }
-
-    private func browserResult(maxLength: Int) -> ExtractionResult? {
-        guard let app = NSWorkspace.shared.frontmostApplication,
-              let bundleId = app.bundleIdentifier,
-              BrowserExtractor.isBrowser(bundleId: bundleId) else {
-            return nil
-        }
-        return BrowserExtractor.extractText(bundleId: bundleId, appName: app.localizedName, maxLength: maxLength)
     }
 
     private func clipboardResult(maxLength: Int) -> ExtractionResult? {

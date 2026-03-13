@@ -27,6 +27,9 @@ packages:
   AXorcist:
     url: https://github.com/steipete/AXorcist
     from: "0.1.0"
+  SwiftReadability:
+    url: https://github.com/lake-of-fire/swift-readability
+    branch: main
 
 targets:
   Murmur:
@@ -47,3 +50,4 @@ targets:
       - package: MLXAudio
         product: MLXAudioTTS
       - package: AXorcist
+      - package: SwiftReadability
