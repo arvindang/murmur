@@ -270,6 +270,7 @@ private struct BrowserAutomationNote: View {
 
 private struct AccessibilityWarningRow: View {
     @State private var hasPermission = AccessibilityExtractor.hasPermission
+    @State private var grantTapped = false
 
     var body: some View {
         if !hasPermission {
@@ -280,17 +281,12 @@ private struct AccessibilityWarningRow: View {
                     .font(.caption)
                 Spacer()
                 Button("Grant") {
+                    grantTapped = true
                     AccessibilityExtractor.openAccessibilitySettings()
                 }
                 .controlSize(.small)
             }
-            .task {
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(2))
-                    hasPermission = AccessibilityExtractor.hasPermission
-                    if hasPermission { break }
-                }
-            }
+            .monitorAccessibilityPermission($hasPermission, grantTapped: grantTapped)
         }
     }
 }

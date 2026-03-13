@@ -164,6 +164,7 @@
 				55FA5046E9EFCAD54C9E8A85 /* Sources */,
 				5D518C0DA7FA93F54066B380 /* Resources */,
 				D9FDE2E088591FE29B875987 /* Frameworks */,
+				CA85A585F24FFC7180EC23A2 /* Reset Accessibility TCC */,
 			);
 			buildRules = (
 			);
@@ -228,6 +229,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		CA85A585F24FFC7180EC23A2 /* Reset Accessibility TCC */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Reset Accessibility TCC";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "tccutil reset Accessibility com.murmur.app";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		55FA5046E9EFCAD54C9E8A85 /* Sources */ = {

@@ -1,7 +1,47 @@
 import SwiftUI
 
+// MARK: - Shared Permission Monitor
+
+struct AccessibilityPermissionMonitor: ViewModifier {
+    @Binding var hasPermission: Bool
+    var grantTapped: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                let newValue = AccessibilityExtractor.hasPermission
+                if newValue != hasPermission { hasPermission = newValue }
+            }
+            .task(id: grantTapped) {
+                // Fast poll for 10s after grant tap, then fall back to 2s
+                if grantTapped {
+                    let deadline = Date().addingTimeInterval(10)
+                    while !Task.isCancelled && !hasPermission && Date() < deadline {
+                        try? await Task.sleep(for: .milliseconds(500))
+                        let newValue = AccessibilityExtractor.hasPermission
+                        if newValue != hasPermission { hasPermission = newValue }
+                    }
+                }
+                while !Task.isCancelled && !hasPermission {
+                    try? await Task.sleep(for: .seconds(2))
+                    let newValue = AccessibilityExtractor.hasPermission
+                    if newValue != hasPermission { hasPermission = newValue }
+                }
+            }
+    }
+}
+
+extension View {
+    func monitorAccessibilityPermission(_ hasPermission: Binding<Bool>, grantTapped: Bool) -> some View {
+        modifier(AccessibilityPermissionMonitor(hasPermission: hasPermission, grantTapped: grantTapped))
+    }
+}
+
+// MARK: - Banner
+
 struct AccessibilityPermissionBanner: View {
     @State private var hasPermission = AccessibilityExtractor.hasPermission
+    @State private var grantTapped = false
 
     var body: some View {
         if !hasPermission {
@@ -20,6 +60,7 @@ struct AccessibilityPermissionBanner: View {
                 Spacer()
 
                 Button("Grant Access") {
+                    grantTapped = true
                     AccessibilityExtractor.openAccessibilitySettings()
                 }
                 .controlSize(.small)
@@ -35,13 +76,7 @@ struct AccessibilityPermissionBanner: View {
                             .strokeBorder(Color.orange.opacity(0.3), lineWidth: 1)
                     )
             )
-            .task {
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(2))
-                    hasPermission = AccessibilityExtractor.hasPermission
-                    if hasPermission { break }
-                }
-            }
+            .monitorAccessibilityPermission($hasPermission, grantTapped: grantTapped)
         }
     }
 }

@@ -51,3 +51,6 @@ targets:
         product: MLXAudioTTS
       - package: AXorcist
       - package: SwiftReadability
+    postBuildScripts:
+      - script: tccutil reset Accessibility com.murmur.app
+        name: Reset Accessibility TCC
