@@ -67,29 +67,29 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 **Build order**: Menu bar shell with system voices first → swap in Kokoro.
 
 ### 1.1 — Menu Bar Shell
-- [ ] Create macOS menu bar app (LSUIElement, no dock icon)
-- [ ] MenuBarExtra with `.window` style for dropdown UI
-- [ ] SwiftUI settings window (workaround: hidden window + NSApp activation policy toggling for reliable Settings presentation)
-- [ ] Global hotkey registration (default: ⌘⇧L) using KeyboardShortcuts
-  - [ ] Recorder UI in settings for user customization
-- [ ] Menu bar icon states: idle, processing, speaking (SF Symbols)
-- [ ] Stop playback on second press of hotkey (toggle behavior)
-- [ ] LaunchAtLogin-Modern toggle in settings
+- [x] Create macOS menu bar app (LSUIElement, no dock icon)
+- [x] MenuBarExtra with `.window` style for dropdown UI
+- [x] SwiftUI settings window (workaround: hidden window + NSApp activation policy toggling for reliable Settings presentation)
+- [x] Global hotkey registration (default: ⌘⇧L) using KeyboardShortcuts
+  - [x] Recorder UI in settings for user customization
+- [x] Menu bar icon states: idle, processing, speaking (SF Symbols)
+- [x] Stop playback on second press of hotkey (toggle behavior)
+- [x] LaunchAtLogin-Modern toggle in settings
 
 ### 1.2 — Text Input (Simple)
-- [ ] Read text from system pasteboard (clipboard) as the initial input method
-- [ ] Menu bar dropdown option: "Read Clipboard"
-- [ ] Strip HTML tags, normalize whitespace, handle common encoding issues
-- [ ] Truncate to reasonable max length (~10,000 chars) with user-facing note
+- [x] Read text from system pasteboard (clipboard) as the initial input method
+- [x] Menu bar dropdown option: "Read Clipboard"
+- [x] Strip HTML tags, normalize whitespace, handle common encoding issues
+- [x] Truncate to reasonable max length (~10,000 chars) with user-facing note
 
 ### 1.3 — System Voice Baseline
-- [ ] Implement VoiceEngine protocol
-- [ ] AVSpeechSynthesizer implementation as the zero-download default
-- [ ] Use "Premium" system voices when available (e.g., Zoe for US English)
-- [ ] Audio output via AVAudioEngine for consistent playback control
-- [ ] Playback controls in menu bar dropdown: pause/resume, stop
-- [ ] Settings: voice selection dropdown, speaking rate slider (0.75x–2.0x)
-- [ ] Voice preview button in settings
+- [x] Implement VoiceEngine protocol
+- [x] AVSpeechSynthesizer implementation as the zero-download default
+- [x] Use "Premium" system voices when available (e.g., Zoe for US English)
+- [x] Audio output via AVAudioEngine for consistent playback control
+- [x] Playback controls in menu bar dropdown: pause/resume, stop
+- [x] Settings: voice selection dropdown, speaking rate slider (0.75x–2.0x)
+- [x] Voice preview button in settings
 
 ### 1.4 — Soprano TTS Integration
 - [x] Integrate Soprano 80M via mlx-audio-swift Swift package
@@ -198,12 +198,12 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 **Goal**: Voice customization, cloud TTS option, and quality-of-life features.
 
 ### 4.1 — Voice Management
-- [ ] Add additional TTS engines (Marvis TTS for multilingual, others)
-- [ ] Organize voices by language and style
+- [x] Add additional TTS engines (Marvis TTS for multilingual, others)
+- [x] Organize voices by language and style
 - [ ] Per-mode voice assignment (e.g., different voice for summaries vs full read)
 - [ ] Cloud TTS option: OpenAI TTS with user's own key (stored in Keychain)
   - [ ] gpt-4o-mini-tts for speed, prompt-steerable voice direction
-- [ ] Voice preview button for all options (speaks a sample sentence)
+- [x] Voice preview button for all options (speaks a sample sentence)
 
 ### 4.2 — History & Queue
 - [ ] Lightweight history: last 20 items with title, source app, timestamp

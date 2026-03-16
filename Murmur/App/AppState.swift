@@ -208,6 +208,9 @@ final class AppState {
         activeEngine.onStateChange = { [weak self] state in
             self?.playbackState = state
         }
+        activeEngine.onError = { [weak self] message in
+            self?.statusMessage = "TTS error: \(message)"
+        }
     }
 
     private func setupHotkeys() {
@@ -227,8 +230,16 @@ final class AppState {
             activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
         case .murmur:
             activeEngine.rate = Float(Defaults[.speakingRate])
-            let voiceId = voiceOverride ?? Defaults[.murmurVoiceId]
-            activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
+            let rawId = voiceOverride ?? Defaults[.murmurVoiceId]
+            let voices = Defaults[.murmurModel].defaultVoices
+            let voiceId = rawId.isEmpty ? nil : rawId
+            if let voiceId, voices.contains(where: { $0.id == voiceId }) {
+                activeEngine.selectedVoiceId = voiceId
+            } else {
+                let fallback = voices.first?.id
+                activeEngine.selectedVoiceId = fallback
+                if let fallback { Defaults[.murmurVoiceId] = fallback }
+            }
         }
     }
 

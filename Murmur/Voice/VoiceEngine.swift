@@ -40,6 +40,7 @@ struct VoiceInfo: Identifiable, Sendable, Hashable {
 protocol VoiceEngine: AnyObject {
     var playbackState: PlaybackState { get }
     var onStateChange: ((PlaybackState) -> Void)? { get set }
+    var onError: ((String) -> Void)? { get set }
 
     func speak(_ text: String)
     func pause()

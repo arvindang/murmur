@@ -57,7 +57,7 @@ enum MurmurModel: String, Defaults.Serializable, CaseIterable, Sendable {
     var supportedLanguages: [String] {
         switch self {
         case .soprano: ["English"]
-        case .marvis: ["English", "French", "German"]
+        case .marvis: ["English"]
         case .qwen3tts: ["English", "Chinese", "Japanese", "Korean", "German", "French", "Russian", "Portuguese", "Spanish", "Italian"]
         }
     }
@@ -69,6 +69,14 @@ enum MurmurModel: String, Defaults.Serializable, CaseIterable, Sendable {
         return "\(displayName) — \(langs) (\(approxSize))"
     }
 
+    var maxChunkCharacters: Int {
+        switch self {
+        case .soprano: 200
+        case .marvis: 300
+        case .qwen3tts: 500
+        }
+    }
+
     var defaultVoices: [VoiceInfo] {
         switch self {
         case .soprano:
@@ -77,8 +85,6 @@ enum MurmurModel: String, Defaults.Serializable, CaseIterable, Sendable {
             [
                 VoiceInfo(id: "conversational_a", name: "Conversational A", language: "English", quality: .premium),
                 VoiceInfo(id: "conversational_b", name: "Conversational B", language: "English", quality: .premium),
-                VoiceInfo(id: "conversational_c", name: "Conversational C", language: "French", quality: .premium),
-                VoiceInfo(id: "conversational_d", name: "Conversational D", language: "German", quality: .premium),
             ]
         case .qwen3tts:
             [VoiceInfo(id: "default", name: "Qwen3-TTS", language: "Auto-detect", quality: .premium)]

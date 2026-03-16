@@ -8,6 +8,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
 
     private(set) var playbackState: PlaybackState = .idle
     var onStateChange: ((PlaybackState) -> Void)?
+    var onError: ((String) -> Void)?
     var selectedVoiceId: String?
     var rate: Float = 1.0
 
@@ -45,14 +46,10 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
             do {
                 try await self.ensureModelLoaded()
                 let sentences = self.splitIntoSentences(text)
+                let chunks = self.chunkSentences(sentences)
                 self.prepareAudioNodes()
 
-                for sentence in sentences {
-                    if Task.isCancelled { break }
-                    let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { continue }
-                    try await self.synthesizeAndPlay(trimmed)
-                }
+                try await self.synthesizeAllAndPlay(chunks)
 
                 if !Task.isCancelled {
                     await self.waitForPlaybackCompletion()
@@ -60,6 +57,8 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
                 }
             } catch {
                 if !Task.isCancelled {
+                    print("[MLXTTSEngine] Synthesis error: \(error)")
+                    self.onError?(error.localizedDescription)
                     self.setPlaybackState(.idle)
                 }
             }
@@ -99,10 +98,12 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
 
     private func ensureModelLoaded() async throws {
         if model == nil {
+            print("[MLXTTSEngine] Loading model: \(modelConfig.modelRepo) (type: \(modelConfig.modelType))")
             model = try await TTS.loadModel(
                 modelRepo: modelConfig.modelRepo,
                 modelType: modelConfig.modelType
             )
+            print("[MLXTTSEngine] Model loaded successfully")
         }
     }
 
@@ -136,29 +137,61 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
         self.connectedFormat = format
     }
 
+    // MARK: - Chunking
+
+    private func chunkSentences(_ sentences: [String]) -> [String] {
+        let maxChars = modelConfig.maxChunkCharacters
+        var chunks: [String] = []
+        var current = ""
+
+        for sentence in sentences {
+            let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+
+            if current.isEmpty {
+                current = trimmed
+            } else if current.count + trimmed.count + 1 <= maxChars {
+                current += " " + trimmed
+            } else {
+                chunks.append(current)
+                current = trimmed
+            }
+        }
+        if !current.isEmpty {
+            chunks.append(current)
+        }
+        return chunks
+    }
+
     // MARK: - Synthesis
 
-    private func synthesizeAndPlay(_ text: String) async throws {
+    private func synthesizeAllAndPlay(_ chunks: [String]) async throws {
         guard let model, let playerNode else { return }
 
-        let voice = selectedVoiceId ?? "default"
+        let voice = selectedVoiceId ?? modelConfig.defaultVoices.first?.id ?? "default"
 
-        let stream = model.generatePCMBufferStream(
-            text: text,
-            voice: voice,
-            refAudio: nil,
-            refText: nil,
-            language: nil
-        )
-
-        for try await buffer in stream {
+        for chunk in chunks {
             if Task.isCancelled { break }
 
-            if connectedFormat == nil {
-                try connectAndStart(format: buffer.format)
-            }
+            print("[MLXTTSEngine] Synthesizing chunk (\(chunk.count) chars) with model=\(modelConfig.displayName) voice=\(voice)")
 
-            await playerNode.scheduleBuffer(buffer)
+            let stream = model.generatePCMBufferStream(
+                text: chunk,
+                voice: voice,
+                refAudio: nil,
+                refText: nil,
+                language: nil
+            )
+
+            for try await buffer in stream {
+                if Task.isCancelled { break }
+
+                if connectedFormat == nil {
+                    try connectAndStart(format: buffer.format)
+                }
+
+                await playerNode.scheduleBuffer(buffer)
+            }
         }
     }
 

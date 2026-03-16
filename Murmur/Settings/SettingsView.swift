@@ -215,17 +215,32 @@ struct ModelDetailView: View {
                         .foregroundStyle(.secondary)
 
                 case .downloaded:
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.murmurAmber)
-                    Text("Ready")
-                        .foregroundStyle(.secondary)
-                    Button(role: .destructive) {
-                        showDeleteConfirmation = true
-                    } label: {
-                        Image(systemName: "trash")
+                    if showDeleteConfirmation {
+                        Text("Delete model?")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Cancel") {
+                            showDeleteConfirmation = false
+                        }
+                        .controlSize(.small)
+                        Button("Delete", role: .destructive) {
+                            appState.deleteModel(model)
+                            showDeleteConfirmation = false
+                        }
+                        .controlSize(.small)
+                    } else {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Color.murmurAmber)
+                        Text("Ready")
+                            .foregroundStyle(.secondary)
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Delete \(model.displayName) model")
                     }
-                    .buttonStyle(.borderless)
-                    .help("Delete \(model.displayName) model")
 
                 case .error(let message):
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -241,14 +256,7 @@ struct ModelDetailView: View {
                 }
             }
         }
-        .alert("Delete \(model.displayName) Model?", isPresented: $showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                appState.deleteModel(model)
-            }
-        } message: {
-            Text("This will remove the model (\(model.approxSize)) and switch to System Voices. You can re-download it later.")
-        }
+        .animation(.easeInOut(duration: 0.15), value: showDeleteConfirmation)
     }
 }
 

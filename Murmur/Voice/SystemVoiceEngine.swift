@@ -7,6 +7,7 @@ final class SystemVoiceEngine: NSObject, VoiceEngine {
 
     private(set) var playbackState: PlaybackState = .idle
     var onStateChange: ((PlaybackState) -> Void)?
+    var onError: ((String) -> Void)?
     var selectedVoiceId: String?
     var rate: Float = AVSpeechUtteranceDefaultSpeechRate
 
