@@ -15,6 +15,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
     let modelConfig: MurmurModel
     private var model: (any SpeechGenerationModel)?
     private var generationTask: Task<Void, Never>?
+    private var generationId: Int = 0
     private var audioEngine: AVAudioEngine?
     private var playerNode: AVAudioPlayerNode?
     private var timePitchNode: AVAudioUnitTimePitch?
@@ -22,15 +23,27 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
     private var idleTimer: Timer?
 
     private static let idleTimeout: TimeInterval = 300 // 5 minutes
+    private static let defaultGenerationParams = GenerateParameters(
+        temperature: 0.75,
+        repetitionPenalty: 1.1,
+        repetitionContextSize: 64
+    )
 
     init(model: MurmurModel) {
         self.modelConfig = model
         super.init()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioConfigChange),
+            name: .AVAudioEngineConfigurationChange,
+            object: nil
+        )
     }
 
     deinit {
         MainActor.assumeIsolated {
             idleTimer?.invalidate()
+            NotificationCenter.default.removeObserver(self)
         }
     }
 
@@ -41,22 +54,27 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
         setPlaybackState(.speaking)
         resetIdleTimer()
 
+        generationId += 1
+        let currentId = generationId
+
         generationTask = Task { [weak self] in
             guard let self else { return }
             do {
                 try await self.ensureModelLoaded()
-                let sentences = self.splitIntoSentences(text)
+                guard self.generationId == currentId else { return }
+
+                let normalizedText = self.normalizeText(text)
+                let sentences = self.splitIntoSentences(normalizedText)
                 let chunks = self.chunkSentences(sentences)
-                self.prepareAudioNodes()
 
-                try await self.synthesizeAllAndPlay(chunks)
+                try await self.synthesizeAllAndPlay(chunks, generationId: currentId)
 
-                if !Task.isCancelled {
+                if !Task.isCancelled, self.generationId == currentId {
                     await self.waitForPlaybackCompletion()
                     self.setPlaybackState(.idle)
                 }
             } catch {
-                if !Task.isCancelled {
+                if !Task.isCancelled, self.generationId == currentId {
                     print("[MLXTTSEngine] Synthesis error: \(error)")
                     self.onError?(error.localizedDescription)
                     self.setPlaybackState(.idle)
@@ -82,10 +100,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
         generationTask?.cancel()
         generationTask = nil
         playerNode?.stop()
-        audioEngine?.stop()
-        audioEngine = nil
-        playerNode = nil
-        timePitchNode = nil
+        // Keep audio nodes alive — just reset connection state so next speak reconnects
         connectedFormat = nil
         if playbackState != .idle {
             setPlaybackState(.idle)
@@ -109,32 +124,69 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
 
     func unloadModel() {
         model = nil
+        teardownAudio()
     }
 
     // MARK: - Audio Chain
 
-    private func prepareAudioNodes() {
-        let engine = AVAudioEngine()
-        let player = AVAudioPlayerNode()
-        let timePitch = AVAudioUnitTimePitch()
+    private func ensureAudioReady(format: AVAudioFormat) throws {
+        // Create nodes if needed
+        if audioEngine == nil {
+            let engine = AVAudioEngine()
+            let player = AVAudioPlayerNode()
+            let timePitch = AVAudioUnitTimePitch()
 
+            engine.attach(player)
+            engine.attach(timePitch)
+
+            self.audioEngine = engine
+            self.playerNode = player
+            self.timePitchNode = timePitch
+        }
+
+        guard let engine = audioEngine, let player = playerNode, let timePitch = timePitchNode else { return }
+
+        // Always update rate
         timePitch.rate = rate
 
-        engine.attach(player)
-        engine.attach(timePitch)
+        // Reconnect if format changed or not yet connected
+        if connectedFormat != format {
+            if connectedFormat != nil {
+                engine.disconnectNodeOutput(player)
+                engine.disconnectNodeOutput(timePitch)
+            }
+            engine.connect(player, to: timePitch, format: format)
+            engine.connect(timePitch, to: engine.mainMixerNode, format: format)
+            connectedFormat = format
+        }
 
-        self.audioEngine = engine
-        self.playerNode = player
-        self.timePitchNode = timePitch
+        if !engine.isRunning {
+            try engine.start()
+        }
+        if !player.isPlaying {
+            player.play()
+        }
     }
 
-    private func connectAndStart(format: AVAudioFormat) throws {
-        guard let engine = audioEngine, let player = playerNode, let timePitch = timePitchNode else { return }
-        engine.connect(player, to: timePitch, format: format)
-        engine.connect(timePitch, to: engine.mainMixerNode, format: format)
-        try engine.start()
-        player.play()
-        self.connectedFormat = format
+    private func teardownAudio() {
+        playerNode?.stop()
+        audioEngine?.stop()
+        audioEngine = nil
+        playerNode = nil
+        timePitchNode = nil
+        connectedFormat = nil
+    }
+
+    @objc nonisolated private func handleAudioConfigChange(_ notification: Notification) {
+        Task { @MainActor in
+            // Reset connection state so next buffer triggers reconnect
+            connectedFormat = nil
+        }
+    }
+
+    private func normalizeText(_ text: String) -> String {
+        text.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Chunking
@@ -165,36 +217,40 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
 
     // MARK: - Synthesis
 
-    private func synthesizeAllAndPlay(_ chunks: [String]) async throws {
-        guard let model, let playerNode else { return }
+    private func synthesizeAllAndPlay(_ chunks: [String], generationId: Int) async throws {
+        guard let model else { return }
 
         let voice = selectedVoiceId ?? modelConfig.defaultVoices.first?.id ?? "default"
+        let params = Self.defaultGenerationParams
 
-        for chunk in chunks {
-            if Task.isCancelled { break }
+        for (i, chunk) in chunks.enumerated() {
+            if Task.isCancelled || self.generationId != generationId { break }
 
-            print("[MLXTTSEngine] Synthesizing chunk (\(chunk.count) chars) with model=\(modelConfig.displayName) voice=\(voice)")
+            print("[MLXTTSEngine] Synthesizing chunk \(i + 1)/\(chunks.count) (\(chunk.count) chars) with model=\(modelConfig.displayName) voice=\(voice)")
 
             let stream = model.generatePCMBufferStream(
                 text: chunk,
                 voice: voice,
                 refAudio: nil,
                 refText: nil,
-                language: nil
+                language: nil,
+                generationParameters: params
             )
 
             for try await buffer in stream {
-                if Task.isCancelled { break }
+                if Task.isCancelled || self.generationId != generationId { break }
 
                 if connectedFormat == nil {
-                    try connectAndStart(format: buffer.format)
+                    try ensureAudioReady(format: buffer.format)
                 }
 
-                await playerNode.scheduleBuffer(buffer)
+                playerNode?.scheduleBuffer(buffer, completionHandler: nil)
             }
         }
     }
 
+    /// Waits for all queued buffers to finish playing by scheduling a zero-frame
+    /// sentinel buffer whose completion handler signals the continuation.
     private func waitForPlaybackCompletion() async {
         guard let playerNode, let connectedFormat else { return }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
