@@ -226,7 +226,7 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
         for (i, chunk) in chunks.enumerated() {
             if Task.isCancelled || self.generationId != generationId { break }
 
-            print("[MLXTTSEngine] Synthesizing chunk \(i + 1)/\(chunks.count) (\(chunk.count) chars) with model=\(modelConfig.displayName) voice=\(voice)")
+            print("[MLXTTSEngine] Synthesizing chunk \(i + 1)/\(chunks.count) (\(chunk.count) chars)")
 
             let stream = model.generatePCMBufferStream(
                 text: chunk,
@@ -237,13 +237,22 @@ final class MLXTTSEngine: NSObject, VoiceEngine {
                 generationParameters: params
             )
 
+            // Collect all buffers for this chunk before scheduling any
+            var chunkBuffers: [AVAudioPCMBuffer] = []
             for try await buffer in stream {
                 if Task.isCancelled || self.generationId != generationId { break }
+                chunkBuffers.append(buffer)
+            }
 
-                if connectedFormat == nil {
-                    try ensureAudioReady(format: buffer.format)
-                }
+            if Task.isCancelled || self.generationId != generationId { break }
 
+            // Ensure audio chain is ready (using first buffer's format)
+            if let first = chunkBuffers.first, connectedFormat == nil {
+                try ensureAudioReady(format: first.format)
+            }
+
+            // Schedule entire chunk at once — smooth playback guaranteed
+            for buffer in chunkBuffers {
                 playerNode?.scheduleBuffer(buffer, completionHandler: nil)
             }
         }

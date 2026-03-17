@@ -13,6 +13,7 @@ extension KeyboardShortcuts.Name {
 enum VoiceEngineType: String, Defaults.Serializable, CaseIterable, Sendable {
     case system
     case murmur
+    case openai
 }
 
 // MARK: - Murmur Model
@@ -101,5 +102,6 @@ extension Defaults.Keys {
     static let voiceEngineType = Key<VoiceEngineType>("voiceEngineType", default: .system)
     static let murmurModel = Key<MurmurModel>("murmurModel", default: .soprano)
     static let murmurVoiceId = Key<String>("murmurVoiceId", default: "default")
+    static let openaiVoiceId = Key<String>("openaiVoiceId", default: "nova")
     static let textSource = Key<TextSource>("textSource", default: .auto)
 }

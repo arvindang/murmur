@@ -89,8 +89,9 @@ struct InlineSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 // Engine picker
                 Picker("Engine:", selection: $engineType) {
-                    Text("System Voices").tag(VoiceEngineType.system)
-                    Text("Murmur Voice").tag(VoiceEngineType.murmur)
+                    Text("System").tag(VoiceEngineType.system)
+                    Text("Murmur").tag(VoiceEngineType.murmur)
+                    Text("OpenAI").tag(VoiceEngineType.openai)
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: engineType) { _, newValue in
@@ -112,25 +113,34 @@ struct InlineSettingsView: View {
                     ModelDetailView(model: murmurModel)
                 }
 
+                if engineType == .openai {
+                    OpenAISettingsSection()
+                }
+
                 MurmurDivider()
 
                 // Voice selection
                 if engineType == .system {
                     Text("System Default")
                         .foregroundStyle(.secondary)
-                } else {
+                } else if engineType == .murmur {
                     MurmurVoicePicker(model: murmurModel)
                 }
+                // OpenAI voice picker is inside OpenAISettingsSection
 
                 // Preview
                 Button("Preview Voice") {
-                    let voiceId = engineType == .system
-                        ? Defaults[.selectedVoiceId]
-                        : Defaults[.murmurVoiceId]
+                    let voiceId: String
+                    switch engineType {
+                    case .system: voiceId = Defaults[.selectedVoiceId]
+                    case .murmur: voiceId = Defaults[.murmurVoiceId]
+                    case .openai: voiceId = Defaults[.openaiVoiceId]
+                    }
                     appState.previewVoice(id: voiceId)
                 }
                 .disabled(appState.playbackState == .speaking ||
-                          (engineType == .murmur && appState.modelManager.state(for: murmurModel) != .downloaded))
+                          (engineType == .murmur && appState.modelManager.state(for: murmurModel) != .downloaded) ||
+                          (engineType == .openai && !KeychainHelper.hasAPIKey()))
 
                 MurmurDivider()
 
@@ -257,6 +267,72 @@ struct ModelDetailView: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: showDeleteConfirmation)
+    }
+}
+
+// MARK: - OpenAI Settings Section
+
+struct OpenAISettingsSection: View {
+    @Default(.openaiVoiceId) private var openaiVoiceId
+    @State private var apiKeyInput = ""
+    @State private var hasKey = KeychainHelper.hasAPIKey()
+
+    private static let voices: [VoiceInfo] = [
+        VoiceInfo(id: "alloy", name: "Alloy", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "ash", name: "Ash", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "ballad", name: "Ballad", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "coral", name: "Coral", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "echo", name: "Echo", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "fable", name: "Fable", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "nova", name: "Nova", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "onyx", name: "Onyx", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "sage", name: "Sage", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "shimmer", name: "Shimmer", language: "Multilingual", quality: .premium, group: "OpenAI"),
+        VoiceInfo(id: "verse", name: "Verse", language: "Multilingual", quality: .premium, group: "OpenAI"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // API key
+            if hasKey {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.murmurAmber)
+                    Text("API key saved")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Remove") {
+                        KeychainHelper.deleteAPIKey()
+                        hasKey = false
+                    }
+                    .controlSize(.small)
+                }
+            } else {
+                HStack {
+                    SecureField("OpenAI API key", text: $apiKeyInput)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Save") {
+                        let trimmed = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        KeychainHelper.save(apiKey: trimmed)
+                        apiKeyInput = ""
+                        hasKey = true
+                    }
+                    .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+
+            Text("Stored in your Mac's Keychain")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            // Voice picker
+            Picker("Voice:", selection: $openaiVoiceId) {
+                ForEach(Self.voices) { voice in
+                    Text(voice.name).tag(voice.id)
+                }
+            }
+        }
     }
 }
 

@@ -19,10 +19,13 @@ final class AppState {
 
     init() {
         let engineType = Defaults[.voiceEngineType]
-        if engineType == .murmur {
+        switch engineType {
+        case .murmur:
             let model = Defaults[.murmurModel]
             activeEngine = MLXTTSEngine(model: model)
-        } else {
+        case .openai:
+            activeEngine = OpenAITTSEngine()
+        case .system:
             activeEngine = SystemVoiceEngine()
         }
         setupVoiceEngine()
@@ -132,6 +135,11 @@ final class AppState {
                 statusMessage = "\(model.displayName) model not downloaded — open Settings to download"
                 return
             }
+        } else if engineType == .openai {
+            if !KeychainHelper.hasAPIKey() {
+                statusMessage = "No OpenAI API key — add one in Settings"
+                return
+            }
         }
 
         configureActiveEngine()
@@ -174,6 +182,8 @@ final class AppState {
         case .murmur:
             let model = Defaults[.murmurModel]
             activeEngine = MLXTTSEngine(model: model)
+        case .openai:
+            activeEngine = OpenAITTSEngine()
         }
 
         setupVoiceEngine()
@@ -240,6 +250,11 @@ final class AppState {
                 activeEngine.selectedVoiceId = fallback
                 if let fallback { Defaults[.murmurVoiceId] = fallback }
             }
+        case .openai:
+            // OpenAI handles speed server-side — rate maps directly (0.5–2.0)
+            activeEngine.rate = Float(Defaults[.speakingRate])
+            let voiceId = voiceOverride ?? Defaults[.openaiVoiceId]
+            activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
         }
     }
 
