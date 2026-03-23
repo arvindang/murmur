@@ -31,7 +31,7 @@ final class OpenAITTSEngine: VoiceEngine {
 
     // MARK: - Available Voices
 
-    let availableVoices: [VoiceInfo] = [
+    static let voices: [VoiceInfo] = [
         VoiceInfo(id: "alloy", name: "Alloy", language: "Multilingual", quality: .premium, group: "OpenAI"),
         VoiceInfo(id: "ash", name: "Ash", language: "Multilingual", quality: .premium, group: "OpenAI"),
         VoiceInfo(id: "ballad", name: "Ballad", language: "Multilingual", quality: .premium, group: "OpenAI"),
@@ -44,6 +44,8 @@ final class OpenAITTSEngine: VoiceEngine {
         VoiceInfo(id: "shimmer", name: "Shimmer", language: "Multilingual", quality: .premium, group: "OpenAI"),
         VoiceInfo(id: "verse", name: "Verse", language: "Multilingual", quality: .premium, group: "OpenAI"),
     ]
+
+    var availableVoices: [VoiceInfo] { Self.voices }
 
     // MARK: - VoiceEngine
 

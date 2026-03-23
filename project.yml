@@ -21,9 +21,6 @@ packages:
   Defaults:
     url: https://github.com/sindresorhus/Defaults
     from: "9.0.6"
-  MLXAudio:
-    url: https://github.com/Blaizzy/mlx-audio-swift
-    from: "0.1.0"
   AXorcist:
     url: https://github.com/steipete/AXorcist
     from: "0.1.0"
@@ -47,8 +44,6 @@ targets:
       - package: KeyboardShortcuts
       - package: LaunchAtLogin
       - package: Defaults
-      - package: MLXAudio
-        product: MLXAudioTTS
       - package: AXorcist
       - package: SwiftReadability
     postBuildScripts:

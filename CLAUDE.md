@@ -32,7 +32,7 @@ Murmur is a **menu bar-only macOS app** (LSUIElement) built with SwiftUI + AppKi
 
 ### VoiceEngine Protocol
 
-`VoiceEngine` is a `@MainActor` protocol. `SystemVoiceEngine` implements it with AVSpeechSynthesizer. `SopranoEngine` implements it with mlx-audio-swift's SopranoModel for local neural TTS. Future engines (OpenAI TTS) will conform to this same protocol. State flows upward via `onStateChange` callback.
+`VoiceEngine` is a `@MainActor` protocol. `SystemVoiceEngine` implements it with AVSpeechSynthesizer. `OpenAITTSEngine` implements it with the OpenAI TTS API for cloud-based high-quality speech. State flows upward via `onStateChange` callback.
 
 ### Concurrency Pattern
 

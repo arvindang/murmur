@@ -8,7 +8,6 @@ import LaunchAtLogin
 struct InlineSettingsView: View {
     @Environment(AppState.self) private var appState
     @Default(.voiceEngineType) private var engineType
-    @Default(.murmurModel) private var murmurModel
     @Default(.speakingRate) private var speakingRate
     @Default(.textSource) private var textSource
 
@@ -90,27 +89,11 @@ struct InlineSettingsView: View {
                 // Engine picker
                 Picker("Engine:", selection: $engineType) {
                     Text("System").tag(VoiceEngineType.system)
-                    Text("Murmur").tag(VoiceEngineType.murmur)
                     Text("OpenAI").tag(VoiceEngineType.openai)
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: engineType) { _, newValue in
                     appState.switchEngine(to: newValue)
-                }
-
-                // Model picker (murmur only)
-                if engineType == .murmur {
-                    Picker("Model:", selection: $murmurModel) {
-                        ForEach(MurmurModel.allCases, id: \.self) { model in
-                            Text(model.dropdownLabel).tag(model)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .onChange(of: murmurModel) { _, newValue in
-                        appState.switchMurmurModel(to: newValue)
-                    }
-
-                    ModelDetailView(model: murmurModel)
                 }
 
                 if engineType == .openai {
@@ -123,8 +106,6 @@ struct InlineSettingsView: View {
                 if engineType == .system {
                     Text("System Default")
                         .foregroundStyle(.secondary)
-                } else if engineType == .murmur {
-                    MurmurVoicePicker(model: murmurModel)
                 }
                 // OpenAI voice picker is inside OpenAISettingsSection
 
@@ -133,13 +114,11 @@ struct InlineSettingsView: View {
                     let voiceId: String
                     switch engineType {
                     case .system: voiceId = Defaults[.selectedVoiceId]
-                    case .murmur: voiceId = Defaults[.murmurVoiceId]
                     case .openai: voiceId = Defaults[.openaiVoiceId]
                     }
                     appState.previewVoice(id: voiceId)
                 }
                 .disabled(appState.playbackState == .speaking ||
-                          (engineType == .murmur && appState.modelManager.state(for: murmurModel) != .downloaded) ||
                           (engineType == .openai && !KeychainHelper.hasAPIKey()))
 
                 MurmurDivider()
@@ -158,138 +137,12 @@ struct InlineSettingsView: View {
     }
 }
 
-// MARK: - Murmur Voice Picker
-
-struct MurmurVoicePicker: View {
-    let model: MurmurModel
-    @Default(.murmurVoiceId) private var murmurVoiceId
-
-    var body: some View {
-        let voices = model.defaultVoices
-        if voices.count <= 1 {
-            Text(voices.first?.name ?? model.displayName)
-                .foregroundStyle(.secondary)
-        } else {
-            Picker("Voice:", selection: $murmurVoiceId) {
-                ForEach(voices) { voice in
-                    Text("\(voice.name) (\(voice.language))").tag(voice.id)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Model Detail View
-
-struct ModelDetailView: View {
-    @Environment(AppState.self) private var appState
-    let model: MurmurModel
-    @State private var showDeleteConfirmation = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Languages:")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(model.supportedLanguages.joined(separator: ", "))
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Text("Size:")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(model.approxSize)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Text("Status:")
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                switch appState.modelManager.state(for: model) {
-                case .notDownloaded:
-                    Button("Download (\(model.approxSize))") {
-                        Task {
-                            await appState.modelManager.downloadModel(model)
-                        }
-                    }
-
-                case .downloading:
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Downloading...")
-                        .foregroundStyle(.secondary)
-
-                case .downloaded:
-                    if showDeleteConfirmation {
-                        Text("Delete model?")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Cancel") {
-                            showDeleteConfirmation = false
-                        }
-                        .controlSize(.small)
-                        Button("Delete", role: .destructive) {
-                            appState.deleteModel(model)
-                            showDeleteConfirmation = false
-                        }
-                        .controlSize(.small)
-                    } else {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color.murmurAmber)
-                        Text("Ready")
-                            .foregroundStyle(.secondary)
-                        Button(role: .destructive) {
-                            showDeleteConfirmation = true
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Delete \(model.displayName) model")
-                    }
-
-                case .error(let message):
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.yellow)
-                    Text("Error")
-                        .foregroundStyle(.secondary)
-                        .help(message)
-                    Button("Retry") {
-                        Task {
-                            await appState.modelManager.downloadModel(model)
-                        }
-                    }
-                }
-            }
-        }
-        .animation(.easeInOut(duration: 0.15), value: showDeleteConfirmation)
-    }
-}
-
 // MARK: - OpenAI Settings Section
 
 struct OpenAISettingsSection: View {
     @Default(.openaiVoiceId) private var openaiVoiceId
     @State private var apiKeyInput = ""
     @State private var hasKey = KeychainHelper.hasAPIKey()
-
-    private static let voices: [VoiceInfo] = [
-        VoiceInfo(id: "alloy", name: "Alloy", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "ash", name: "Ash", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "ballad", name: "Ballad", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "coral", name: "Coral", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "echo", name: "Echo", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "fable", name: "Fable", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "nova", name: "Nova", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "onyx", name: "Onyx", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "sage", name: "Sage", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "shimmer", name: "Shimmer", language: "Multilingual", quality: .premium, group: "OpenAI"),
-        VoiceInfo(id: "verse", name: "Verse", language: "Multilingual", quality: .premium, group: "OpenAI"),
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -328,7 +181,7 @@ struct OpenAISettingsSection: View {
 
             // Voice picker
             Picker("Voice:", selection: $openaiVoiceId) {
-                ForEach(Self.voices) { voice in
+                ForEach(OpenAITTSEngine.voices) { voice in
                     Text(voice.name).tag(voice.id)
                 }
             }

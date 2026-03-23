@@ -11,31 +11,23 @@ final class AppState {
     var statusMessage: String?
 
     private var activeEngine: any VoiceEngine
-    let modelManager = ModelManager()
-
-    var currentEngineType: VoiceEngineType {
-        Defaults[.voiceEngineType]
-    }
 
     init() {
+        // Migrate removed engine types to system
+        if let raw = UserDefaults.standard.string(forKey: "voiceEngineType"),
+           raw == "murmur" || raw == "soprano" {
+            Defaults[.voiceEngineType] = .system
+        }
+
         let engineType = Defaults[.voiceEngineType]
         switch engineType {
-        case .murmur:
-            let model = Defaults[.murmurModel]
-            activeEngine = MLXTTSEngine(model: model)
-        case .openai:
-            activeEngine = OpenAITTSEngine()
         case .system:
             activeEngine = SystemVoiceEngine()
+        case .openai:
+            activeEngine = OpenAITTSEngine()
         }
         setupVoiceEngine()
         setupHotkeys()
-
-        // Migrate legacy .soprano preference to .murmur
-        if let raw = UserDefaults.standard.string(forKey: "voiceEngineType"), raw == "soprano" {
-            Defaults[.voiceEngineType] = .murmur
-            Defaults[.murmurModel] = .soprano
-        }
     }
 
     // MARK: - Actions
@@ -129,13 +121,7 @@ final class AppState {
 
     private func speakText(_ text: String) {
         let engineType = Defaults[.voiceEngineType]
-        if engineType == .murmur {
-            let model = Defaults[.murmurModel]
-            if modelManager.state(for: model) != .downloaded {
-                statusMessage = "\(model.displayName) model not downloaded — open Settings to download"
-                return
-            }
-        } else if engineType == .openai {
+        if engineType == .openai {
             if !KeychainHelper.hasAPIKey() {
                 statusMessage = "No OpenAI API key — add one in Settings"
                 return
@@ -163,15 +149,6 @@ final class AppState {
         activeEngine.speak("Hello! This is how I sound. I'm Murmur, your reading assistant.")
     }
 
-    func deleteModel(_ model: MurmurModel) {
-        activeEngine.stop()
-        modelManager.deleteModel(model)
-        // If we deleted the currently selected murmur model, switch to system
-        if Defaults[.murmurModel] == model {
-            switchEngine(to: .system)
-        }
-    }
-
     func switchEngine(to type: VoiceEngineType) {
         activeEngine.stop()
         Defaults[.voiceEngineType] = type
@@ -179,22 +156,10 @@ final class AppState {
         switch type {
         case .system:
             activeEngine = SystemVoiceEngine()
-        case .murmur:
-            let model = Defaults[.murmurModel]
-            activeEngine = MLXTTSEngine(model: model)
         case .openai:
             activeEngine = OpenAITTSEngine()
         }
 
-        setupVoiceEngine()
-    }
-
-    func switchMurmurModel(to model: MurmurModel) {
-        guard model != Defaults[.murmurModel] else { return }
-        activeEngine.stop()
-        Defaults[.murmurModel] = model
-        Defaults[.murmurVoiceId] = model.defaultVoices.first?.id ?? "default"
-        activeEngine = MLXTTSEngine(model: model)
         setupVoiceEngine()
     }
 
@@ -206,10 +171,6 @@ final class AppState {
         case .speaking: "waveform.circle.fill"
         case .paused: "pause.circle"
         }
-    }
-
-    var availableVoices: [VoiceInfo] {
-        activeEngine.availableVoices
     }
 
     // MARK: - Private
@@ -238,18 +199,6 @@ final class AppState {
             activeEngine.rate = Self.avSpeechRate(from: Defaults[.speakingRate])
             let voiceId = voiceOverride ?? Defaults[.selectedVoiceId]
             activeEngine.selectedVoiceId = voiceId.isEmpty ? nil : voiceId
-        case .murmur:
-            activeEngine.rate = Float(Defaults[.speakingRate])
-            let rawId = voiceOverride ?? Defaults[.murmurVoiceId]
-            let voices = Defaults[.murmurModel].defaultVoices
-            let voiceId = rawId.isEmpty ? nil : rawId
-            if let voiceId, voices.contains(where: { $0.id == voiceId }) {
-                activeEngine.selectedVoiceId = voiceId
-            } else {
-                let fallback = voices.first?.id
-                activeEngine.selectedVoiceId = fallback
-                if let fallback { Defaults[.murmurVoiceId] = fallback }
-            }
         case .openai:
             // OpenAI handles speed server-side — rate maps directly (0.5–2.0)
             activeEngine.rate = Float(Defaults[.speakingRate])

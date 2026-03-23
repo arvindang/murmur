@@ -5,15 +5,22 @@ enum KeychainHelper {
     private static let service = "com.murmur.app"
     private static let account = "openai-api-key"
 
+    /// Base query attributes shared across all operations.
+    private static var baseQuery: [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecUseDataProtectionKeychain as String: true,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+        ]
+    }
+
     @discardableResult
     static func save(apiKey: String) -> Bool {
         guard let data = apiKey.data(using: .utf8) else { return false }
 
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
+        let query = baseQuery
 
         // Try update first
         let updateAttrs: [String: Any] = [kSecValueData as String: data]
@@ -28,13 +35,52 @@ enum KeychainHelper {
     }
 
     static func loadAPIKey() -> String? {
-        let query: [String: Any] = [
+        // 1. Try Data Protection keychain
+        var query = baseQuery
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecSuccess, let data = result as? Data {
+            return String(data: data, encoding: .utf8)
+        }
+
+        // 2. Try legacy keychain (no Data Protection flag) and migrate if found
+        if let legacyKey = loadFromLegacyKeychain() {
+            save(apiKey: legacyKey)
+            deleteFromLegacyKeychain()
+            return legacyKey
+        }
+
+        return nil
+    }
+
+    @discardableResult
+    static func deleteAPIKey() -> Bool {
+        SecItemDelete(baseQuery as CFDictionary) == errSecSuccess
+    }
+
+    static func hasAPIKey() -> Bool {
+        var query = baseQuery
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+    }
+
+    // MARK: - Legacy keychain migration helpers
+
+    private static var legacyBaseQuery: [String: Any] {
+        [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
         ]
+    }
+
+    private static func loadFromLegacyKeychain() -> String? {
+        var query = legacyBaseQuery
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -42,17 +88,7 @@ enum KeychainHelper {
         return String(data: data, encoding: .utf8)
     }
 
-    @discardableResult
-    static func deleteAPIKey() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        return SecItemDelete(query as CFDictionary) == errSecSuccess
-    }
-
-    static func hasAPIKey() -> Bool {
-        loadAPIKey() != nil
+    private static func deleteFromLegacyKeychain() {
+        SecItemDelete(legacyBaseQuery as CFDictionary)
     }
 }

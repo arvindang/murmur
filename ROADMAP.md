@@ -15,14 +15,12 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 │  Extraction  │              │                         │
 │              │              │                         │
 │  AXorcist    │  Local:      │  Local:                 │
-│  (a11y API)  │  Foundation  │  Soprano 80M            │
-│              │  Models      │  (mlx-audio-swift)      │
-│  Pasteboard  │  (macOS 26+) │                         │
-│  fallback    │              │  Fallback:              │
-│              │  Cloud:      │  AVSpeechSynthesizer    │
+│  (a11y API)  │  Foundation  │  AVSpeechSynthesizer    │
+│              │  Models      │                         │
+│  Pasteboard  │  (macOS 26+) │  Cloud (opt-in):        │
+│  fallback    │              │  OpenAI TTS             │
+│              │  Cloud:      │                         │
 │              │  Claude API  │                         │
-│              │              │  Cloud (optional):      │
-│              │              │  OpenAI TTS             │
 └──────────────┴──────────────┴────────────────────────┘
 ```
 
@@ -37,8 +35,7 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 - **IDE**: Xcode 26 (.xcodeproj + SPM for dependencies)
 - **Min Target**: macOS 15 Sonoma (Apple Silicon required)
 - **Text extraction**: AXorcist (modern AXUIElement wrapper), NSPasteboard fallback
-- **Local TTS**: Soprano 80M via mlx-audio-swift (MLX, downloaded on first use)
-- **TTS fallback**: AVSpeechSynthesizer (zero-download, instant)
+- **Local TTS**: AVSpeechSynthesizer (zero-download, instant)
 - **Cloud TTS (opt-in)**: OpenAI TTS (gpt-4o-mini-tts, user provides API key)
 - **Local LLM**: Foundation Models framework (macOS 26+ only, graceful degradation)
 - **Cloud LLM (opt-in)**: Claude API (Haiku for speed, Sonnet for quality, user provides key)
@@ -52,7 +49,6 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 ### Dependencies (Swift Packages)
 | Package | Purpose |
 |---------|---------|
-| mlx-audio-swift | Soprano TTS inference on Apple Silicon |
 | KeyboardShortcuts | Global hotkey registration + recorder UI |
 | LaunchAtLogin-Modern | Launch at login via SMAppService |
 | Defaults | Type-safe UserDefaults with SwiftUI support |
@@ -91,22 +87,14 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 - [x] Settings: voice selection dropdown, speaking rate slider (0.75x–2.0x)
 - [x] Voice preview button in settings
 
-### 1.4 — Soprano TTS Integration
-- [x] Integrate Soprano 80M via mlx-audio-swift Swift package
-- [x] First-launch flow: prompt user to download Soprano model (~160MB)
-- [x] Store models in HuggingFace cache (~/.cache/huggingface/hub/)
-- [x] Audio synthesis pipeline: text → Soprano → PCM buffer → AVAudioEngine
-- [x] Streaming playback: begin audio output as soon as first sentence is synthesized
-- [x] Settings toggle: "Use system voices" vs "Use Murmur Voice (Soprano)"
-- [x] Single Soprano voice (voice parameter unused in this model)
-- [x] Explicit failure with status message if Soprano model not yet downloaded
+### 1.4 — ~~Soprano TTS Integration~~ (Removed)
+*MLX TTS engines (Soprano, Marvis, Qwen3-TTS) removed in favor of System + OpenAI — simpler, higher quality.*
 
 ### Phase 1 Ship Criteria
 - User copies text, hits ⌘⇧L, hears it read aloud
 - System voices work immediately with zero setup
-- Soprano voice available after one-time model download
-- Under 500ms latency from hotkey to first audio (model kept warm in memory)
-- No network calls required
+- OpenAI TTS available with API key for higher quality
+- No network calls required for system voice path
 
 ---
 
@@ -198,11 +186,8 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 **Goal**: Voice customization, cloud TTS option, and quality-of-life features.
 
 ### 4.1 — Voice Management
-- [x] Add additional TTS engines (Marvis TTS for multilingual, others)
-- [x] Organize voices by language and style
+- [x] Voice engine selection: System (local) or OpenAI (cloud, API key)
 - [ ] Per-mode voice assignment (e.g., different voice for summaries vs full read)
-- [ ] Cloud TTS option: OpenAI TTS with user's own key (stored in Keychain)
-  - [ ] gpt-4o-mini-tts for speed, prompt-steerable voice direction
 - [x] Voice preview button for all options (speaks a sample sentence)
 
 ### 4.2 — History & Queue
@@ -254,9 +239,7 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 
 ## Open Questions
 
-- **Model bundling vs download**: Bundle the app at <20MB. Download Soprano model (~160MB) on first launch. Foundation Models uses system-provided models (no download). Consider: ship with system voices as instant default, prompt for Soprano download during onboarding.
 - **PDF extraction**: Preview's accessibility tree is spotty for PDFs. May need PDFKit-based extraction as a special case in Phase 2.
-- **Memory pressure**: Soprano 80M is modest (~160MB). Foundation Models managed by the OS. Still need to handle low-memory gracefully — unload Soprano when idle for N minutes.
 - **Foundation Models capabilities**: At time of writing, the exact capabilities and model quality of the Foundation Models framework for summarization tasks needs validation during Phase 3 development. May need prompt tuning.
 
 ---
@@ -293,9 +276,8 @@ Murmur/
 │   │   └── ClaudeSummarizer.swift
 │   ├── Voice/
 │   │   ├── VoiceEngine.swift           (protocol)
-│   │   ├── SopranoEngine.swift         (mlx-audio-swift)
 │   │   ├── SystemVoiceEngine.swift     (AVSpeechSynthesizer)
-│   │   └── OpenAIVoiceEngine.swift
+│   │   └── OpenAITTSEngine.swift       (OpenAI TTS API)
 │   ├── Settings/
 │   │   ├── SettingsView.swift
 │   │   ├── VoiceBrowserView.swift
