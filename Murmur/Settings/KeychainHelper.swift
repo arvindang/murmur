@@ -12,7 +12,6 @@ enum KeychainHelper {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecUseDataProtectionKeychain as String: true,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
         ]
     }
 
@@ -35,25 +34,14 @@ enum KeychainHelper {
     }
 
     static func loadAPIKey() -> String? {
-        // 1. Try Data Protection keychain
         var query = baseQuery
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecSuccess, let data = result as? Data {
-            return String(data: data, encoding: .utf8)
-        }
-
-        // 2. Try legacy keychain (no Data Protection flag) and migrate if found
-        if let legacyKey = loadFromLegacyKeychain() {
-            save(apiKey: legacyKey)
-            deleteFromLegacyKeychain()
-            return legacyKey
-        }
-
-        return nil
+        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     @discardableResult
@@ -65,30 +53,5 @@ enum KeychainHelper {
         var query = baseQuery
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
-    }
-
-    // MARK: - Legacy keychain migration helpers
-
-    private static var legacyBaseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-    }
-
-    private static func loadFromLegacyKeychain() -> String? {
-        var query = legacyBaseQuery
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    private static func deleteFromLegacyKeychain() {
-        SecItemDelete(legacyBaseQuery as CFDictionary)
     }
 }
