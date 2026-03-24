@@ -22,5 +22,9 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Murmur needs automation access to read text from your browser.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2025 Murmur. All rights reserved.</string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Murmur uses accessibility to read text from the frontmost application.</string>
 </dict>
 </plist>

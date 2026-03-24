@@ -37,9 +37,23 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: Murmur/Resources/Info.plist
-        CODE_SIGN_ENTITLEMENTS: Murmur/Resources/Murmur.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.murmur.app
         GENERATE_INFOPLIST_FILE: "NO"
+        PRODUCT_NAME: Murmur
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "Apple Development"
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+          ENABLE_HARDENED_RUNTIME: "NO"
+          CODE_SIGN_ENTITLEMENTS: Murmur/Resources/MurmurDebug.entitlements
+        Release:
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          CODE_SIGN_STYLE: Manual
+          DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+          PROVISIONING_PROFILE_SPECIFIER: ""
+          ENABLE_HARDENED_RUNTIME: "YES"
+          CODE_SIGN_ENTITLEMENTS: Murmur/Resources/Murmur.entitlements
     dependencies:
       - package: KeyboardShortcuts
       - package: LaunchAtLogin
@@ -47,5 +61,8 @@ targets:
       - package: AXorcist
       - package: SwiftReadability
     postBuildScripts:
-      - script: tccutil reset Accessibility com.murmur.app
-        name: Reset Accessibility TCC
+      - script: |
+          if [ "$CONFIGURATION" = "Debug" ]; then
+            tccutil reset Accessibility com.murmur.app
+          fi
+        name: Reset Accessibility TCC (Debug only)

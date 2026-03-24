@@ -1,5 +1,8 @@
 import AppKit
 import AXorcist
+import os.log
+
+private let logger = Logger(subsystem: "com.murmur.app", category: "BrowserExtractor")
 
 @MainActor
 enum BrowserExtractor {
@@ -131,7 +134,7 @@ enum BrowserExtractor {
         let result = nsScript.executeAndReturnError(&error)
 
         if let error {
-            print("[BrowserExtractor] \(context) failed for \(bundleId): \(error)")
+            logger.warning("\(context) failed for \(bundleId): \(error)")
             return nil
         }
 

@@ -3,8 +3,8 @@ DerivedData/
 build/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
-Package.resolved
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Swift Package Manager
 .build/
