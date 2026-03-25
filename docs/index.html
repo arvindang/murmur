@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Murmur — Text-to-Speech from Your Menu Bar</title>
+  <meta name="description" content="A macOS menu bar app that reads text aloud from any application. Press a hotkey, hear your text. Open source, lightweight, privacy-first.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%8A%3C/text%3E%3C/svg%3E">
+  <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%8A%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    :root {
+      --bg-primary: #0f0e0d;
+      --bg-secondary: #181614;
+      --bg-tertiary: #221f1b;
+      --bg-card: #1c1916;
+      --border: #2e2820;
+      --border-hover: #3e3630;
+      --text-primary: #f0ece6;
+      --text-secondary: #a69e94;
+      --text-tertiary: #736b62;
+      --accent: #E8A54B;
+      --accent-dim: rgba(232, 165, 75, 0.12);
+      --accent-glow: rgba(232, 165, 75, 0.06);
+      --green: #4ade80;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--accent); text-decoration: none; transition: opacity 0.2s; }
+    a:hover { opacity: 0.8; }
+
+    code, .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* --- NAV --- */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(15, 14, 13, 0.8);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-logo svg { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text-primary); opacity: 1; }
+
+    .nav-links .gh-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* --- HERO --- */
+    .hero {
+      padding: 160px 24px 100px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(232, 165, 75, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(232, 165, 75, 0.2);
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      margin-bottom: 28px;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    h1 {
+      font-size: clamp(40px, 6vw, 64px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+    }
+
+    .hero-sub {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0f0e0d;
+    }
+
+    .btn-primary:hover {
+      background: #f0b35e;
+      opacity: 1;
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--border-hover);
+      background: #2a2620;
+      opacity: 1;
+    }
+
+    .btn svg { width: 18px; height: 18px; }
+
+    /* --- SCREENSHOT --- */
+    .screenshot-section {
+      padding: 0 24px 100px;
+    }
+
+    .screenshot-grid {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      align-items: flex-start;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .screenshot-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .screenshot-wrapper {
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .screenshot-wrapper img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .screenshot-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* --- SECTIONS --- */
+    section {
+      padding: 80px 24px;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      color: var(--text-secondary);
+      font-size: 16px;
+      max-width: 560px;
+      margin-bottom: 48px;
+    }
+
+    /* --- FEATURES --- */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: border-color 0.2s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-hover);
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      background: var(--accent-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* --- HOW IT WORKS --- */
+    .how-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .how-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .how-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .how-card .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .how-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .how-card .steps {
+      list-style: none;
+      padding: 0;
+    }
+
+    .how-card .steps li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      padding-left: 20px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+
+    .how-card .steps li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    /* --- VOICE ENGINES --- */
+    .engines-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .engine-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+    }
+
+    .engine-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .engine-card .engine-subtitle {
+      font-size: 14px;
+      color: var(--text-tertiary);
+      margin-bottom: 20px;
+    }
+
+    .engine-card ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .engine-card ul li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      padding-left: 20px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+
+    .engine-card ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    .engine-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .engine-badge-free {
+      background: rgba(74, 222, 128, 0.12);
+      color: var(--green);
+    }
+
+    .byok-note {
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .byok-note strong {
+      color: var(--text-primary);
+    }
+
+    /* --- INSTALL --- */
+    .install-section {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .install-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .install-card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .install-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .install-card .step-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .code-block {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text-primary);
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .code-block .comment { color: var(--text-tertiary); }
+    .code-block .cmd { color: var(--green); }
+
+    /* --- SPECS --- */
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .spec-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .spec-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .spec-card p {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .spec-card .note {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    /* --- CTA --- */
+    .cta-section {
+      text-align: center;
+      padding: 100px 24px;
+    }
+
+    .cta-section h2 {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .cta-section p {
+      color: var(--text-secondary);
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+
+    /* --- FOOTER --- */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 24px;
+    }
+
+    .footer-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-text {
+      font-size: 13px;
+      color: var(--text-tertiary);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--text-secondary); }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .how-grid { grid-template-columns: 1fr; }
+      .engines-grid { grid-template-columns: 1fr; }
+      .install-grid { grid-template-columns: 1fr; }
+      .specs-grid { grid-template-columns: 1fr; }
+      .screenshot-grid { flex-direction: column; align-items: center; }
+      .nav-links .hide-mobile { display: none; }
+      .hero { padding: 120px 20px 60px; }
+      section { padding: 60px 20px; }
+      .footer-inner { flex-direction: column; gap: 16px; text-align: center; }
+    }
+
+    @media (max-width: 480px) {
+      .hero-actions { flex-direction: column; align-items: stretch; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <svg width="22" height="22" viewBox="0 0 26 24" fill="currentColor">
+          <rect x="1" y="9" width="3" height="6" rx="1.5"/>
+          <rect x="6.5" y="4.5" width="3" height="15" rx="1.5"/>
+          <rect x="11.5" y="1.5" width="3" height="21" rx="1.5"/>
+          <rect x="16.5" y="4.5" width="3" height="15" rx="1.5"/>
+          <rect x="22" y="9" width="3" height="6" rx="1.5"/>
+        </svg>
+        Murmur
+      </div>
+      <ul class="nav-links">
+        <li><a href="#features" class="hide-mobile">Features</a></li>
+        <li><a href="#how-it-works" class="hide-mobile">How It Works</a></li>
+        <li><a href="#install" class="hide-mobile">Install</a></li>
+        <li>
+          <a href="https://github.com/arvindang/murmur" class="gh-link" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            GitHub
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      Open Source
+    </div>
+    <h1>Any app on your Mac,<br>read aloud.</h1>
+    <p class="hero-sub">
+      A macOS menu bar app that reads text aloud from any application. Focus a window, press &#8984;&#8679;L, and listen.
+    </p>
+    <div class="hero-actions">
+      <a href="#install" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for macOS
+      </a>
+      <a href="https://github.com/arvindang/murmur" class="btn btn-secondary" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        View Source
+      </a>
+    </div>
+  </section>
+
+  <!-- SCREENSHOTS -->
+  <div class="screenshot-section">
+    <div class="screenshot-grid">
+      <div class="screenshot-item">
+        <div class="screenshot-wrapper">
+          <img src="main-widget.png" alt="Murmur menu bar widget showing play, pause, and stop controls while reading from Safari">
+        </div>
+        <span class="screenshot-label">Reading from Safari</span>
+      </div>
+      <div class="screenshot-item">
+        <div class="screenshot-wrapper">
+          <img src="settings.png" alt="Murmur settings panel with OpenAI voice engine selected">
+        </div>
+        <span class="screenshot-label">Settings with OpenAI TTS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="container">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Your text, read aloud</h2>
+      <p class="section-desc">
+        Murmur lives in your menu bar and turns any on-screen text into speech — instantly.
+      </p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">&#x2328;&#xFE0F;</div>
+          <h3>Global Hotkey</h3>
+          <p>Press <strong>&#8984;&#8679;L</strong> from anywhere to start reading. Fully customizable in settings.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128269;</div>
+          <h3>Smart Extraction</h3>
+          <p>Reads the focused text in any app via the Accessibility API — with clipboard as a fallback.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127760;</div>
+          <h3>Browser Aware</h3>
+          <p>Extracts article content directly from Safari and Chrome, skipping ads and navigation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127908;</div>
+          <h3>Two Voice Engines</h3>
+          <p>System voices for instant, free playback — or OpenAI TTS for studio-quality speech.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9776;</div>
+          <h3>Menu Bar Native</h3>
+          <p>No dock icon, no windows — just a discreet menu bar panel. Stays out of your way.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128274;</div>
+          <h3>Privacy First</h3>
+          <p>System voice means zero network calls. OpenAI is opt-in — your text stays on your machine by default.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how-it-works">
+    <div class="container">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">Two ways to listen</h2>
+      <p class="section-desc">
+        Murmur intelligently reads from the focused app — or falls back to your clipboard. Either way, it's one action.
+      </p>
+      <div class="how-grid">
+        <div class="how-card">
+          <h3>
+            <span class="step-num">1</span>
+            Read the Focused App
+          </h3>
+          <ul class="steps">
+            <li>Press <strong>&#8984;&#8679;L</strong> from any app</li>
+            <li>Murmur detects the focused window and extracts its text</li>
+            <li>In Safari and Chrome, it pulls the article — not the chrome</li>
+            <li>Text is read aloud — press again to stop</li>
+          </ul>
+        </div>
+        <div class="how-card">
+          <h3>
+            <span class="step-num">2</span>
+            Read Your Clipboard
+          </h3>
+          <ul class="steps">
+            <li>Copy any text to your clipboard</li>
+            <li>Click <strong>Read Clipboard</strong> in the menu bar</li>
+            <li>Murmur reads the copied text aloud</li>
+            <li>Pause, resume, or stop anytime</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VOICE ENGINES -->
+  <section id="voice-engines">
+    <div class="container">
+      <div class="section-label">Voice Engines</div>
+      <h2 class="section-title">Two engines, your choice</h2>
+      <p class="section-desc">
+        Use the built-in system voice for free, offline speech — or bring your own OpenAI API key for studio-quality TTS.
+      </p>
+      <div class="engines-grid">
+        <div class="engine-card">
+          <h3>
+            System
+            <span class="engine-badge engine-badge-free">Free</span>
+          </h3>
+          <p class="engine-subtitle">Apple's built-in AVSpeechSynthesizer</p>
+          <ul>
+            <li>Works instantly with no setup</li>
+            <li>Completely offline — no data leaves your Mac</li>
+            <li>Choose from all installed macOS voices</li>
+            <li>Adjustable speed from 0.5x to 2x</li>
+          </ul>
+        </div>
+        <div class="engine-card">
+          <h3>
+            OpenAI TTS
+            <span class="engine-badge">BYOK</span>
+          </h3>
+          <p class="engine-subtitle">High-quality cloud voices via the OpenAI API</p>
+          <ul>
+            <li>Natural, studio-quality speech</li>
+            <li>Multiple voice options (Alloy, Nova, Shimmer, and more)</li>
+            <li>Bring your own API key — stored in your Mac's Keychain</li>
+            <li>Pay only for what you use via your OpenAI account</li>
+          </ul>
+          <div class="byok-note">
+            <strong>Bring Your Own Key.</strong> Murmur never collects or proxies API keys. Your key goes directly from your Keychain to OpenAI.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="install-section">
+    <div class="container">
+      <div class="section-label">Install</div>
+      <h2 class="section-title">Get started in seconds</h2>
+      <p class="section-desc">
+        Download the app or build from source. No external runtime dependencies.
+      </p>
+      <div class="install-grid">
+        <div class="install-card">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download DMG
+          </h3>
+          <p class="step-desc">Download, open, and drag to Applications.</p>
+          <a href="#" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;">
+            Download Murmur v0.1.0
+          </a>
+        </div>
+        <div class="install-card">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Build from Source
+          </h3>
+          <p class="step-desc">Clone the repo and build with Xcode. Requires Xcode 26+ and xcodegen.</p>
+          <div class="code-block">
+            <span class="cmd">git clone https://github.com/arvindang/murmur.git</span><br>
+            <span class="cmd">cd murmur</span><br>
+            <span class="cmd">brew install xcodegen</span><br>
+            <span class="cmd">xcodegen generate</span><br>
+            <span class="cmd">xcodebuild -project Murmur.xcodeproj -scheme Murmur</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REQUIREMENTS -->
+  <section id="specs">
+    <div class="container">
+      <div class="section-label">Requirements</div>
+      <h2 class="section-title">System requirements</h2>
+      <p class="section-desc">
+        Murmur is a lightweight native app with minimal requirements.
+      </p>
+      <div class="specs-grid">
+        <div class="spec-card">
+          <h3>Operating System</h3>
+          <p>macOS 15 Sequoia or later</p>
+          <div class="note">Apple Silicon</div>
+        </div>
+        <div class="spec-card">
+          <h3>Disk Space</h3>
+          <p>Less than 10 MB</p>
+          <div class="note">No runtime dependencies</div>
+        </div>
+        <div class="spec-card">
+          <h3>Permissions</h3>
+          <p>Accessibility (recommended)</p>
+          <div class="note">Required for smart text extraction</div>
+        </div>
+        <div class="spec-card">
+          <h3>Build Requirements</h3>
+          <p>Xcode 26+ &amp; xcodegen</p>
+          <div class="note">Only needed if building from source</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <h2>Stop reading.<br>Start listening.</h2>
+    <p>Murmur is free, open source, and built for people who'd rather listen.</p>
+    <div class="hero-actions">
+      <a href="#install" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for macOS
+      </a>
+      <a href="https://github.com/arvindang/murmur" class="btn btn-secondary" target="_blank" rel="noopener">
+        Star on GitHub
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-text">&copy; 2025 Murmur. Open source.</div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/arvindang/murmur" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/arvindang/murmur/issues" target="_blank" rel="noopener">Issues</a></li>
+        <li><a href="https://github.com/arvindang/murmur/releases" target="_blank" rel="noopener">Releases</a></li>
+        <li><a href="https://www.threads.net/@arvindang" target="_blank" rel="noopener">Threads</a></li>
+        <li><a href="https://x.com/arvindang" target="_blank" rel="noopener">X</a></li>
+      </ul>
+    </div>
+  </footer>
+
+<script data-goatcounter="https://arvindang.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
