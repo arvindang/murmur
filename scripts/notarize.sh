@@ -28,9 +28,18 @@ CONFIG="Release"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_DIR/build"
+
+# Read version from project.yml MARKETING_VERSION
+VERSION=$(grep 'MARKETING_VERSION' "$PROJECT_DIR/project.yml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+if [ -z "$VERSION" ]; then
+    echo "Error: Could not read MARKETING_VERSION from project.yml"
+    exit 1
+fi
+echo "==> Version: $VERSION"
+
 ARCHIVE_PATH="$BUILD_DIR/$APP_NAME.xcarchive"
 EXPORT_DIR="$BUILD_DIR/export"
-DMG_PATH="$BUILD_DIR/$APP_NAME.dmg"
+DMG_PATH="$BUILD_DIR/$APP_NAME-${VERSION}.dmg"
 
 # ---------------------------------------------------------------------------
 # Preflight checks
@@ -77,38 +86,21 @@ xcodebuild archive \
     -configuration "$CONFIG" \
     -archivePath "$ARCHIVE_PATH" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
-    SKIP_INSTALL=NO \
-    BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+    CODE_SIGN_STYLE=Manual \
+    CODE_SIGN_IDENTITY="Developer ID Application" \
+    PROVISIONING_PROFILE_SPECIFIER="" \
+    SKIP_INSTALL=NO
 
 # ---------------------------------------------------------------------------
-# Step 4: Export archive (Developer ID)
+# Step 4: Extract .app from archive
 # ---------------------------------------------------------------------------
 
-echo "==> Exporting archive..."
+echo "==> Extracting .app from archive..."
 
-EXPORT_OPTIONS_PLIST="$BUILD_DIR/ExportOptions.plist"
-cat > "$EXPORT_OPTIONS_PLIST" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>developer-id</string>
-    <key>teamID</key>
-    <string>$TEAM_ID</string>
-</dict>
-</plist>
-EOF
-
-xcodebuild -exportArchive \
-    -archivePath "$ARCHIVE_PATH" \
-    -exportPath "$EXPORT_DIR" \
-    -exportOptionsPlist "$EXPORT_OPTIONS_PLIST"
-
-APP_PATH="$EXPORT_DIR/$APP_NAME.app"
+APP_PATH="$ARCHIVE_PATH/Products/Applications/$APP_NAME.app"
 
 if [ ! -d "$APP_PATH" ]; then
-    echo "Error: Export failed — $APP_PATH not found."
+    echo "Error: Archive does not contain $APP_NAME.app"
     exit 1
 fi
 
@@ -140,7 +132,14 @@ hdiutil create \
 rm -rf "$DMG_STAGING"
 
 # ---------------------------------------------------------------------------
-# Step 7: Notarize
+# Step 7: Sign the DMG
+# ---------------------------------------------------------------------------
+
+echo "==> Signing .dmg..."
+codesign --force --sign "Developer ID Application: ARVIN DANG ($TEAM_ID)" "$DMG_PATH"
+
+# ---------------------------------------------------------------------------
+# Step 8: Notarize
 # ---------------------------------------------------------------------------
 
 echo "==> Submitting for notarization..."
@@ -158,14 +157,14 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 8: Staple
+# Step 9: Staple
 # ---------------------------------------------------------------------------
 
 echo "==> Stapling notarization ticket..."
 xcrun stapler staple "$DMG_PATH"
 
 # ---------------------------------------------------------------------------
-# Step 9: Validate
+# Step 10: Validate
 # ---------------------------------------------------------------------------
 
 echo "==> Validating..."
