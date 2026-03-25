@@ -222,8 +222,8 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 ### 5.1 — Launch Prep
 - [ ] Landing page (Astro or plain HTML on Cloudflare Pages)
 - [ ] Screen recording demo: 30-second GIF showing hotkey → summary → audio
-- [ ] Direct .dmg download with auto-update (Sparkle 2)
-- [ ] Notarization via `notarytool` and code signing for Gatekeeper
+- [x] Direct .dmg download (Sparkle auto-update is future work)
+- [x] Notarization via `notarytool` and code signing for Gatekeeper
 
 ### 5.2 — Launch
 - [ ] Product Hunt launch
