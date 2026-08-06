@@ -140,19 +140,58 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 echo "==> Creating .dmg..."
 
-DMG_STAGING="$BUILD_DIR/dmg-staging"
-mkdir -p "$DMG_STAGING"
-cp -R "$APP_PATH" "$DMG_STAGING/"
-ln -s /Applications "$DMG_STAGING/Applications"
+DMG_RW_PATH="$BUILD_DIR/$APP_NAME-rw.asif"
+DMG_MOUNT_PATH="$BUILD_DIR/dmg-mount"
+DMG_DEVICE=""
 
-hdiutil create \
-    -volname "$APP_NAME" \
-    -srcfolder "$DMG_STAGING" \
-    -ov \
-    -format UDZO \
+cleanup_mounted_image() {
+    if [ -d "$DMG_MOUNT_PATH" ] && mount | grep -Fq "on $DMG_MOUNT_PATH "; then
+        diskutil unmount force "$DMG_MOUNT_PATH" >/dev/null 2>&1 || true
+    fi
+    if [ -n "$DMG_DEVICE" ]; then
+        diskutil eject "$DMG_DEVICE" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup_mounted_image EXIT
+
+APP_SIZE_KIB=$(du -sk "$APP_PATH" | awk '{print $1}')
+DMG_SIZE_MIB=$(( (APP_SIZE_KIB + 1023) / 1024 + 20 ))
+
+diskutil image create blank \
+    --size "${DMG_SIZE_MIB}MiB" \
+    --volumeName "$APP_NAME" \
+    --fs APFS \
+    "$DMG_RW_PATH"
+
+mkdir "$DMG_MOUNT_PATH"
+ATTACH_OUTPUT=$(diskutil image attach \
+    --mountOptions nobrowse \
+    --mountPoint "$DMG_MOUNT_PATH" \
+    "$DMG_RW_PATH")
+echo "$ATTACH_OUTPUT"
+DMG_DEVICE=$(echo "$ATTACH_OUTPUT" | awk 'NR == 1 {print $1}')
+
+touch "$DMG_MOUNT_PATH/.metadata_never_index"
+ditto "$APP_PATH" "$DMG_MOUNT_PATH/$APP_NAME.app"
+ln -s /Applications "$DMG_MOUNT_PATH/Applications"
+sync
+
+# Xcode's CoreSimulator service may inspect a newly mounted app bundle and
+# dissent from a normal unmount. This is a private, fully synced temporary
+# image, so force-unmounting only this mount point is safe and deterministic.
+diskutil unmount force "$DMG_MOUNT_PATH"
+diskutil eject "$DMG_DEVICE"
+DMG_DEVICE=""
+
+diskutil image create from \
+    --format UDZO \
+    "$DMG_RW_PATH" \
     "$DMG_PATH"
+hdiutil verify "$DMG_PATH"
 
-rm -rf "$DMG_STAGING"
+rm -f "$DMG_RW_PATH"
+rmdir "$DMG_MOUNT_PATH"
+trap - EXIT
 
 # ---------------------------------------------------------------------------
 # Step 7: Sign the DMG
