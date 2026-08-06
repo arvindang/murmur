@@ -138,7 +138,28 @@
       font-size: 13px;
       font-weight: 500;
       color: var(--accent);
+    }
+
+    .hero-badges {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
       margin-bottom: 28px;
+      position: relative;
+    }
+
+    .badge-link {
+      background: var(--bg-tertiary);
+      border-color: var(--border);
+      color: var(--text-secondary);
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .badge-link:hover {
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+      opacity: 1;
     }
 
     .badge-dot {
@@ -481,6 +502,129 @@
       color: var(--text-primary);
     }
 
+    /* --- WHAT'S NEW --- */
+    .releases {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .release-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+    }
+
+    .release-head {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .release-version {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .release-date {
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-left: auto;
+    }
+
+    .release-summary {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    .release-group + .release-group {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .release-group.fixed ul {
+      column-count: 2;
+      column-gap: 40px;
+    }
+
+    .release-group.fixed li {
+      break-inside: avoid;
+    }
+
+    .release-group h4 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      margin-bottom: 12px;
+    }
+
+    .release-group ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .release-group li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      padding-left: 20px;
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    .release-group li::before {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 9px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    .release-group.fixed li::before { background: var(--green); }
+
+    .release-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .release-card.past {
+      padding: 22px 32px;
+    }
+
+    .release-card.past .release-head {
+      padding-bottom: 0;
+      margin-bottom: 0;
+      border-bottom: none;
+    }
+
+    .release-card.past .release-version { font-size: 16px; }
+
+    .release-card.past .release-note {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
     /* --- INSTALL --- */
     .install-section {
       background: var(--bg-secondary);
@@ -499,6 +643,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 28px;
+      min-width: 0;
     }
 
     .install-card h3 {
@@ -624,6 +769,8 @@
       .engines-grid { grid-template-columns: 1fr; }
       .install-grid { grid-template-columns: 1fr; }
       .specs-grid { grid-template-columns: 1fr; }
+      .release-group.fixed ul { column-count: 1; }
+      .release-card, .release-card.past { padding: 24px 20px; }
       .screenshot-grid { flex-direction: column; align-items: center; }
       .nav-links .hide-mobile { display: none; }
       .hero { padding: 120px 20px 60px; }
@@ -655,6 +802,7 @@
       <ul class="nav-links">
         <li><a href="#features" class="hide-mobile">Features</a></li>
         <li><a href="#how-it-works" class="hide-mobile">How It Works</a></li>
+        <li><a href="#whats-new" class="hide-mobile">What's New</a></li>
         <li><a href="#install" class="hide-mobile">Install</a></li>
         <li>
           <a href="https://github.com/arvindang/murmur" class="gh-link" target="_blank" rel="noopener">
@@ -668,9 +816,15 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="badge">
-      <span class="badge-dot"></span>
-      Open Source
+    <div class="hero-badges">
+      <span class="badge">
+        <span class="badge-dot"></span>
+        Open Source
+      </span>
+      <a href="#whats-new" class="badge badge-link">
+        v0.2.0 is out — what's new
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
     </div>
     <h1>Any app on your Mac,<br>read aloud.</h1>
     <p class="hero-sub">
@@ -828,6 +982,68 @@
     </div>
   </section>
 
+  <!-- WHAT'S NEW -->
+  <section id="whats-new">
+    <div class="container">
+      <div class="section-label">What's New</div>
+      <h2 class="section-title">Release notes</h2>
+      <p class="section-desc">
+        Every change that shipped, in plain language. Full commit history lives on GitHub.
+      </p>
+      <div class="releases">
+        <div class="release-card">
+          <div class="release-head">
+            <span class="release-version">v0.2.0</span>
+            <span class="engine-badge">Latest</span>
+            <span class="release-date">August 6, 2026</span>
+          </div>
+          <p class="release-summary">
+            A reliability release. Long articles now read all the way through, cloud playback recovers from
+            network hiccups instead of dying mid-sentence, and browser extraction can't hang the app anymore.
+          </p>
+          <div class="release-body">
+            <div class="release-group">
+              <h4>Added</h4>
+              <ul>
+                <li>OpenAI's <strong>Marin</strong> and <strong>Cedar</strong> voices.</li>
+                <li>A one-command release pipeline covering versioning, validation, notarization, and publishing.</li>
+                <li>Unit tests for speech chunking and long-text cleanup.</li>
+              </ul>
+            </div>
+            <div class="release-group fixed">
+              <h4>Fixed</h4>
+              <ul>
+                <li>Long articles read up to <strong>100,000 characters</strong> instead of silently stopping at 10,000.</li>
+                <li>OpenAI speech input is split below the API limit, even for unusually long sentences.</li>
+                <li>Transient OpenAI and network failures retry before playback starts, instead of aborting the article.</li>
+                <li>Streaming audio uses bounded buffering, real completion callbacks, and a stall watchdog.</li>
+                <li>Browser extraction is cancellable, targets the originally focused app, and bounds its waits.</li>
+                <li>System voice playback queues long text safely and ignores stale cancellation callbacks.</li>
+                <li>API key settings only report success when the Keychain write actually succeeds.</li>
+                <li>Settings expand to show the full form without an internal scroll area.</li>
+                <li>Debug builds no longer reset the Accessibility permission automatically.</li>
+                <li>Release builds pin SwiftSoup 2.13.7 to dodge a Swift optimizer crash in Xcode 27.</li>
+                <li>DMG packaging avoids file-lock races on mounted app bundles.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="release-links">
+            <a href="https://github.com/arvindang/murmur/releases/tag/v0.2.0" target="_blank" rel="noopener">Release on GitHub &#8599;</a>
+            <a href="https://github.com/arvindang/murmur/compare/v0.1.0...v0.2.0" target="_blank" rel="noopener">Full diff: v0.1.0 &#8594; v0.2.0 &#8599;</a>
+            <a href="https://github.com/arvindang/murmur/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog &#8599;</a>
+          </div>
+        </div>
+        <div class="release-card past">
+          <div class="release-head">
+            <span class="release-version">v0.1.0</span>
+            <span class="release-note">Initial release — menu bar app, global hotkey, universal text extraction, system and OpenAI voices.</span>
+            <span class="release-date">March 25, 2026</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- INSTALL -->
   <section id="install" class="install-section">
     <div class="container">
@@ -846,6 +1062,9 @@
           <a href="Murmur-0.2.0.dmg" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;">
             Download Murmur v0.2.0
           </a>
+          <p class="step-desc" style="margin: 12px 0 0; text-align: center;">
+            <a href="#whats-new">What's new in v0.2.0</a>
+          </p>
         </div>
         <div class="install-card">
           <h3>
@@ -916,7 +1135,7 @@
   <!-- FOOTER -->
   <footer>
     <div class="footer-inner">
-      <div class="footer-text">&copy; 2025 Murmur. Open source.</div>
+      <div class="footer-text">&copy; 2026 Murmur. Open source.</div>
       <ul class="footer-links">
         <li><a href="https://github.com/arvindang/murmur" target="_blank" rel="noopener">GitHub</a></li>
         <li><a href="https://github.com/arvindang/murmur/issues" target="_blank" rel="noopener">Issues</a></li>
