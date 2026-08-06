@@ -55,6 +55,12 @@ KEYCHAIN_PROFILE=murmur-notary ./scripts/release.sh 0.2.0 --publish
 
 Omit `--publish` to build and verify a release candidate without pushing it;
 the script restores the repository afterward and leaves the candidate in `build/`.
+If publishing succeeds but Pages is temporarily unavailable, resume just the
+remote deployment and live-link checks without rebuilding or retagging:
+
+```bash
+./scripts/release.sh 0.2.0 --verify
+```
 
 ## OpenAI TTS Setup
 
