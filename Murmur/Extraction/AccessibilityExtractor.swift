@@ -8,8 +8,12 @@ enum AccessibilityExtractor {
         AXPermissionHelpers.hasAccessibilityPermissions()
     }
 
+    static func configureMessagingTimeout() {
+        AXTimeoutConfiguration.setGlobalTimeout(2)
+    }
+
     static func requestPermission() {
-        AXPermissionHelpers.askForAccessibilityIfNeeded()
+        _ = AXPermissionHelpers.askForAccessibilityIfNeeded()
     }
 
     static func openAccessibilitySettings() {
@@ -18,14 +22,18 @@ enum AccessibilityExtractor {
     }
 
     /// Main entry point: tries selected text -> focused text -> document text.
-    static func extractText(maxLength: Int = 10_000) -> ExtractionResult? {
+    static func extractText(
+        application requestedApplication: NSRunningApplication? = nil,
+        maxLength: Int = 100_000
+    ) -> ExtractionResult? {
         guard hasPermission else { return nil }
 
-        let frontmostApp = NSWorkspace.shared.frontmostApplication
-        let appName = frontmostApp?.localizedName
-        let bundleId = frontmostApp?.bundleIdentifier
+        let targetApplication = requestedApplication ?? NSWorkspace.shared.frontmostApplication
+        let appName = targetApplication?.localizedName
+        let bundleId = targetApplication?.bundleIdentifier
 
-        guard let app = Element.focusedApplication(),
+        guard let targetApplication,
+              let app = Element.application(for: targetApplication),
               let focused = app.focusedUIElement() else {
             return nil
         }
@@ -83,7 +91,13 @@ enum AccessibilityExtractor {
         var nodesVisited = 0
 
         // Try to find a 'main' landmark first for a very targeted extraction
-        if let mainLandmark = findMainLandmark(in: window) {
+        var landmarkNodesVisited = 0
+        if let mainLandmark = findMainLandmark(
+            in: window,
+            maxDepth: maxDepth,
+            currentDepth: 0,
+            nodesVisited: &landmarkNodesVisited
+        ) {
             collectText(from: mainLandmark, into: &collected, maxDepth: maxDepth, currentDepth: 0, nodesVisited: &nodesVisited)
         } else {
             collectText(from: window, into: &collected, maxDepth: maxDepth, currentDepth: 0, nodesVisited: &nodesVisited)
@@ -95,7 +109,15 @@ enum AccessibilityExtractor {
         return ClipboardExtractor.clean(joined, maxLength: maxLength)
     }
 
-    private static func findMainLandmark(in element: Element) -> Element? {
+    private static func findMainLandmark(
+        in element: Element,
+        maxDepth: Int,
+        currentDepth: Int,
+        nodesVisited: inout Int
+    ) -> Element? {
+        guard currentDepth < maxDepth, nodesVisited < maxNodeVisits else { return nil }
+        nodesVisited += 1
+
         if let desc = element.roleDescription(),
            desc.lowercased() == "main" {
             return element
@@ -103,7 +125,13 @@ enum AccessibilityExtractor {
 
         guard let children = element.children() else { return nil }
         for child in children {
-            if let found = findMainLandmark(in: child) {
+            guard nodesVisited < maxNodeVisits else { return nil }
+            if let found = findMainLandmark(
+                in: child,
+                maxDepth: maxDepth,
+                currentDepth: currentDepth + 1,
+                nodesVisited: &nodesVisited
+            ) {
                 return found
             }
         }

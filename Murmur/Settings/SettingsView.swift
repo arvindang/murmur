@@ -118,7 +118,8 @@ struct InlineSettingsView: View {
                     }
                     appState.previewVoice(id: voiceId)
                 }
-                .disabled(appState.playbackState == .speaking ||
+                .disabled(appState.isProcessing ||
+                          appState.playbackState == .speaking ||
                           (engineType == .openai && !KeychainHelper.hasAPIKey()))
 
                 MurmurDivider()
@@ -143,6 +144,7 @@ struct OpenAISettingsSection: View {
     @Default(.openaiVoiceId) private var openaiVoiceId
     @State private var apiKeyInput = ""
     @State private var hasKey = KeychainHelper.hasAPIKey()
+    @State private var keychainError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -155,8 +157,12 @@ struct OpenAISettingsSection: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Remove") {
-                        KeychainHelper.deleteAPIKey()
-                        hasKey = false
+                        if KeychainHelper.deleteAPIKey() || !KeychainHelper.hasAPIKey() {
+                            hasKey = false
+                            keychainError = nil
+                        } else {
+                            keychainError = "Could not remove the API key from Keychain"
+                        }
                     }
                     .controlSize(.small)
                 }
@@ -167,9 +173,13 @@ struct OpenAISettingsSection: View {
                     Button("Save") {
                         let trimmed = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
-                        KeychainHelper.save(apiKey: trimmed)
-                        apiKeyInput = ""
-                        hasKey = true
+                        if KeychainHelper.save(apiKey: trimmed) {
+                            apiKeyInput = ""
+                            hasKey = true
+                            keychainError = nil
+                        } else {
+                            keychainError = "Could not save the API key to Keychain"
+                        }
                     }
                     .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
@@ -178,6 +188,12 @@ struct OpenAISettingsSection: View {
             Text("Stored in your Mac's Keychain")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            if let keychainError {
+                Text(keychainError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
 
             // Voice picker
             Picker("Voice:", selection: $openaiVoiceId) {

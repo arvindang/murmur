@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Long articles now read up to 100,000 characters instead of silently stopping at 10,000.
+- OpenAI speech input is split below the API limit, including unusually long sentences.
+- Transient OpenAI and network failures retry before playback starts instead of immediately aborting an article.
+- Streaming audio uses bounded buffering, actual-playback completion callbacks, and a stall watchdog.
+- Browser extraction is cancellable, targets the originally focused app, and bounds AppleScript, network, and Accessibility waits.
+- System voice playback now queues long text safely and ignores stale cancellation callbacks.
+- API key settings only report success when the Keychain operation succeeds.
+- Debug builds no longer reset Accessibility permission automatically.
+- Settings expand to show the complete form without an internal scroll area.
+
+### Added
+
+- Unit tests for speech chunking and long-text cleanup.
+- OpenAI's Marin and Cedar text-to-speech voices.
+- A one-command release pipeline for versioning, validation, notarization, GitHub Releases, and Pages deployment.
+
 ## v0.1.0
 
 Initial release of Murmur — a menu bar macOS app that reads text aloud.

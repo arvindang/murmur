@@ -15,7 +15,7 @@ Copy text or select it in any app, press **⌘⇧L**, and hear it read aloud.
 
 ## Requirements
 
-- macOS 15 Sonoma or later
+- macOS 15 Sequoia or later
 - Apple Silicon (M1+)
 - Xcode 26+ with Swift 6.2
 
@@ -33,6 +33,28 @@ xcodegen generate
 # Build
 xcodebuild -project Murmur.xcodeproj -scheme Murmur -configuration Debug build
 ```
+
+## Releasing
+
+Releases are built, signed, and notarized on the release Mac. One-time setup:
+
+```bash
+xcrun notarytool store-credentials murmur-notary \
+  --apple-id "you@example.com" \
+  --team-id R9H5W4SA9U
+```
+
+Once the release changes are committed and `main` is clean and current, one
+command updates the app and website versions, runs the tests, builds and
+notarizes the DMG, publishes the tag and GitHub Release, deploys GitHub Pages,
+and verifies the live download:
+
+```bash
+KEYCHAIN_PROFILE=murmur-notary ./scripts/release.sh 0.2.0 --publish
+```
+
+Omit `--publish` to build and verify a release candidate without pushing it;
+the script restores the repository afterward and leaves the candidate in `build/`.
 
 ## OpenAI TTS Setup
 

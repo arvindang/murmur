@@ -4,6 +4,7 @@ import AVFoundation
 final class SystemVoiceEngine: NSObject, VoiceEngine {
 
     private let synthesizer = AVSpeechSynthesizer()
+    private var activeUtterances: [AVSpeechUtterance] = []
 
     private(set) var playbackState: PlaybackState = .idle
     var onStateChange: ((PlaybackState) -> Void)?
@@ -17,38 +18,49 @@ final class SystemVoiceEngine: NSObject, VoiceEngine {
     }
 
     func speak(_ text: String) {
+        let chunks = SpeechTextChunker.chunks(for: text, maxCharacters: 3_000)
+        guard !chunks.isEmpty else { return }
+
         stop()
+        setPlaybackState(.speaking)
 
-        let utterance = AVSpeechUtterance(string: text)
+        activeUtterances = chunks.map { chunk in
+            let utterance = AVSpeechUtterance(string: chunk)
 
-        if let voiceId = selectedVoiceId {
-            utterance.voice = AVSpeechSynthesisVoice(identifier: voiceId)
-        } else {
-            utterance.voice = Self.bestAvailableVoice()
+            if let voiceId = selectedVoiceId {
+                utterance.voice = AVSpeechSynthesisVoice(identifier: voiceId)
+            } else {
+                utterance.voice = Self.bestAvailableVoice()
+            }
+
+            utterance.rate = rate
+            utterance.pitchMultiplier = 1.0
+            utterance.volume = 1.0
+            return utterance
         }
 
-        utterance.rate = rate
-        utterance.pitchMultiplier = 1.0
-        utterance.volume = 1.0
-
-        setPlaybackState(.speaking)
-        synthesizer.speak(utterance)
+        for utterance in activeUtterances {
+            synthesizer.speak(utterance)
+        }
     }
 
     func pause() {
         guard playbackState == .speaking else { return }
-        synthesizer.pauseSpeaking(at: .word)
-        setPlaybackState(.paused)
+        if synthesizer.pauseSpeaking(at: .word) {
+            setPlaybackState(.paused)
+        }
     }
 
     func resume() {
         guard playbackState == .paused else { return }
-        synthesizer.continueSpeaking()
-        setPlaybackState(.speaking)
+        if synthesizer.continueSpeaking() {
+            setPlaybackState(.speaking)
+        }
     }
 
     func stop() {
-        guard playbackState != .idle else { return }
+        guard playbackState != .idle || !activeUtterances.isEmpty else { return }
+        activeUtterances.removeAll()
         synthesizer.stopSpeaking(at: .immediate)
         setPlaybackState(.idle)
     }
@@ -105,8 +117,17 @@ extension SystemVoiceEngine: AVSpeechSynthesizerDelegate {
         _ synthesizer: AVSpeechSynthesizer,
         didFinish utterance: AVSpeechUtterance
     ) {
+        let utteranceId = ObjectIdentifier(utterance)
         MainActor.assumeIsolated {
-            setPlaybackState(.idle)
+            guard let index = activeUtterances.firstIndex(where: {
+                ObjectIdentifier($0) == utteranceId
+            }) else {
+                return
+            }
+            activeUtterances.remove(at: index)
+            if activeUtterances.isEmpty {
+                setPlaybackState(.idle)
+            }
         }
     }
 
@@ -114,8 +135,17 @@ extension SystemVoiceEngine: AVSpeechSynthesizerDelegate {
         _ synthesizer: AVSpeechSynthesizer,
         didCancel utterance: AVSpeechUtterance
     ) {
+        let utteranceId = ObjectIdentifier(utterance)
         MainActor.assumeIsolated {
-            setPlaybackState(.idle)
+            guard let index = activeUtterances.firstIndex(where: {
+                ObjectIdentifier($0) == utteranceId
+            }) else {
+                return
+            }
+            activeUtterances.remove(at: index)
+            if activeUtterances.isEmpty {
+                setPlaybackState(.idle)
+            }
         }
     }
 }

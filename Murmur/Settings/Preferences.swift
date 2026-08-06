@@ -20,7 +20,7 @@ enum VoiceEngineType: String, Defaults.Serializable, CaseIterable, Sendable {
 extension Defaults.Keys {
     static let selectedVoiceId = Key<String>("selectedVoiceId", default: "")
     static let speakingRate = Key<Double>("speakingRate", default: 1.0)
-    static let maxTextLength = Key<Int>("maxTextLength", default: 10_000)
+    static let maxTextLength = Key<Int>("maxTextLength", default: 100_000)
     static let voiceEngineType = Key<VoiceEngineType>("voiceEngineType", default: .system)
     static let openaiVoiceId = Key<String>("openaiVoiceId", default: "nova")
     static let textSource = Key<TextSource>("textSource", default: .auto)

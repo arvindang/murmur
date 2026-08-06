@@ -51,14 +51,10 @@ struct MenuBarView: View {
                 .padding(.top, 12)
             MurmurDivider()
 
-            ScrollView {
-                InlineSettingsView()
-                    .environment(appState)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
-            }
-            .frame(maxHeight: 450)
-            .clipped()
+            InlineSettingsView()
+                .environment(appState)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
         }
         .tint(Color.murmurAmber)
     }
@@ -97,7 +93,7 @@ struct MenuBarView: View {
                 .foregroundStyle(Color.murmurAmber)
                 .symbolEffect(
                     .variableColor.iterative,
-                    isActive: appState.playbackState == .speaking
+                    isActive: appState.playbackState == .speaking || appState.isProcessing
                 )
             Text("Murmur")
                 .font(.title3.weight(.semibold))
@@ -147,7 +143,10 @@ struct MenuBarView: View {
             Button {
                 appState.readText()
             } label: {
-                Label("Read Aloud", systemImage: "speaker.wave.2")
+                Label(
+                    appState.isProcessing ? "Cancel Extraction" : "Read Aloud",
+                    systemImage: appState.isProcessing ? "xmark.circle" : "speaker.wave.2"
+                )
             }
             .buttonStyle(MurmurPrimaryButtonStyle())
             .keyboardShortcut("l", modifiers: [.command, .shift])

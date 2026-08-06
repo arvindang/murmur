@@ -2,7 +2,7 @@ import AppKit
 
 enum ClipboardExtractor {
 
-    static func extractText(maxLength: Int = 10_000) -> String? {
+    static func extractText(maxLength: Int = 100_000) -> String? {
         let pasteboard = NSPasteboard.general
 
         // Try plain string first
