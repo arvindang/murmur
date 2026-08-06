@@ -13,6 +13,7 @@
 - API key settings only report success when the Keychain operation succeeds.
 - Debug builds no longer reset Accessibility permission automatically.
 - Settings expand to show the complete form without an internal scroll area.
+- Release archives use SwiftSoup 2.13.7 to avoid a Swift optimizer crash in Xcode 27.
 
 ### Added
 
