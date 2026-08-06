@@ -3,14 +3,15 @@ set -euo pipefail
 
 usage() {
     cat <<'USAGE'
-Usage: scripts/release.sh <version> [--publish]
+Usage: scripts/release.sh <version> [--publish|--verify]
 
 Builds, signs, notarizes, and packages Murmur. With --publish, it also commits
 the release metadata and DMG, tags and pushes the release, creates the GitHub
-Release, and verifies the GitHub Pages download.
+Release, and verifies the GitHub Pages download. With --verify, it resumes only
+the remote release and website checks for an already-published version.
 
-The repository must be clean and on main. Configure notarization using one of
-the authentication methods documented in scripts/notarize.sh.
+Publishing requires a clean repository on main. Configure notarization using
+one of the authentication methods documented in scripts/notarize.sh.
 USAGE
 }
 
@@ -21,8 +22,11 @@ fi
 
 VERSION="$1"
 PUBLISH=false
+VERIFY_ONLY=false
 if [ "${2:-}" = "--publish" ]; then
     PUBLISH=true
+elif [ "${2:-}" = "--verify" ]; then
+    VERIFY_ONLY=true
 elif [ -n "${2:-}" ]; then
     usage
     exit 64
@@ -39,8 +43,94 @@ TAG="v$VERSION"
 DMG_NAME="Murmur-$VERSION.dmg"
 BUILD_DMG="$PROJECT_DIR/build/$DMG_NAME"
 SITE_DMG="$PROJECT_DIR/docs/$DMG_NAME"
+GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-arvindang/murmur}"
+MURMUR_SITE_URL="${MURMUR_SITE_URL:-https://arv.in/murmur/}"
+PAGES_WAIT_SECONDS="${PAGES_WAIT_SECONDS:-1800}"
+PAGES_POLL_SECONDS="${PAGES_POLL_SECONDS:-5}"
 BACKUP_DIR=""
 RELEASE_COMMITTED=false
+
+wait_for_pages_build() {
+    local release_commit="$1"
+    local expected_link="$2"
+    local build_type deadline build_info build_status build_url build_error run_id
+
+    build_type="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type)"
+    deadline=$((SECONDS + PAGES_WAIT_SECONDS))
+
+    if [ "$build_type" = "legacy" ]; then
+        echo "==> Waiting for the branch-based Pages build..."
+        while [ "$SECONDS" -lt "$deadline" ]; do
+            if curl --fail --silent --location "$MURMUR_SITE_URL" | rg -q "$expected_link"; then
+                echo "The live site already contains $expected_link."
+                return 0
+            fi
+
+            build_info="$(gh api "repos/$GITHUB_REPOSITORY/pages/builds?per_page=30" \
+                --jq ".[] | select(.commit == \"$release_commit\") | [.status, .url, (.error.message // \"\")] | @tsv" \
+                | head -1)"
+
+            if [ -n "$build_info" ]; then
+                IFS=$'\t' read -r build_status build_url build_error <<< "$build_info"
+                case "$build_status" in
+                    built)
+                        echo "Pages build completed: $build_url"
+                        return 0
+                        ;;
+                    errored)
+                        echo "Pages build is currently errored: ${build_error:-$build_url}"
+                        ;;
+                esac
+            fi
+
+            sleep "$PAGES_POLL_SECONDS"
+        done
+
+        echo "Error: Timed out waiting for the Pages build for $release_commit."
+        return 1
+    fi
+
+    echo "==> Waiting for the workflow-based Pages deployment..."
+    run_id=""
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        if curl --fail --silent --location "$MURMUR_SITE_URL" | rg -q "$expected_link"; then
+            echo "The live site already contains $expected_link."
+            return 0
+        fi
+
+        run_id="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --branch main \
+            --limit 50 \
+            --json databaseId,headSha,workflowName \
+            --jq ".[] | select(.headSha == \"$release_commit\" and (.workflowName | ascii_downcase | contains(\"pages\"))) | .databaseId" \
+            | head -1)"
+        if [ -n "$run_id" ]; then
+            gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+            return 0
+        fi
+        sleep "$PAGES_POLL_SECONDS"
+    done
+
+    echo "Error: Timed out waiting for the Pages workflow for $release_commit."
+    return 1
+}
+
+wait_for_live_site() {
+    local expected_link="$1"
+    local deadline=$((SECONDS + PAGES_WAIT_SECONDS))
+
+    echo "==> Verifying the live download link..."
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        if curl --fail --silent --location "$MURMUR_SITE_URL" | rg -q "$expected_link"; then
+            return 0
+        fi
+        sleep "$PAGES_POLL_SECONDS"
+    done
+
+    echo "Error: Pages completed, but the live site does not link to $expected_link."
+    return 1
+}
 
 restore_release_files() {
     if [ -z "$BACKUP_DIR" ] || [ ! -d "$BACKUP_DIR" ] || [ "$RELEASE_COMMITTED" = true ]; then
@@ -70,14 +160,45 @@ trap cleanup_on_exit EXIT
 
 cd "$PROJECT_DIR"
 
-for command in git gh rg ruby xcodegen xcodebuild; do
+for command in git gh rg curl; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "Error: Required command is not installed: $command"
         exit 1
     fi
 done
 
+if [ "$VERIFY_ONLY" != true ]; then
+    for command in ruby xcodegen xcodebuild; do
+        if ! command -v "$command" >/dev/null 2>&1; then
+            echo "Error: Required command is not installed: $command"
+            exit 1
+        fi
+    done
+fi
+
 gh auth status >/dev/null
+
+git fetch origin main --tags
+
+if [ "$VERIFY_ONLY" = true ]; then
+    if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+        echo "Error: GitHub Release $TAG does not exist."
+        exit 1
+    fi
+    if ! git rev-parse "$TAG^{commit}" >/dev/null 2>&1; then
+        echo "Error: Git tag $TAG does not resolve to a commit."
+        exit 1
+    fi
+
+    RELEASE_COMMIT="$(git rev-parse "$TAG^{commit}")"
+    EXPECTED_LINK="Murmur-$VERSION.dmg"
+    wait_for_pages_build "$RELEASE_COMMIT" "$EXPECTED_LINK"
+    wait_for_live_site "$EXPECTED_LINK"
+    echo "Published Murmur $TAG successfully."
+    echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+    echo "Website: $MURMUR_SITE_URL"
+    exit 0
+fi
 
 if [ "$(git branch --show-current)" != "main" ]; then
     echo "Error: Releases must be run from main."
@@ -88,8 +209,6 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "Error: Commit or stash existing changes before starting a release."
     exit 1
 fi
-
-git fetch origin main --tags
 
 if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
     echo "Error: Local main must exactly match origin/main before releasing."
@@ -156,47 +275,16 @@ git push --atomic origin main "$TAG"
 
 echo "==> Creating GitHub Release..."
 gh release create "$TAG" "$SITE_DMG" \
-    --repo arvindang/murmur \
+    --repo "$GITHUB_REPOSITORY" \
     --title "Murmur $TAG" \
     --generate-notes \
     --latest \
     --verify-tag
 
 RELEASE_COMMIT="$(git rev-parse HEAD)"
-echo "==> Waiting for the Pages deployment..."
-RUN_ID=""
-for _ in {1..30}; do
-    RUN_ID="$(gh run list \
-        --repo arvindang/murmur \
-        --workflow deploy-pages.yml \
-        --branch main \
-        --limit 10 \
-        --json databaseId,headSha \
-        --jq ".[] | select(.headSha == \"$RELEASE_COMMIT\") | .databaseId" \
-        | head -1)"
-    if [ -n "$RUN_ID" ]; then
-        break
-    fi
-    sleep 2
-done
-
-if [ -z "$RUN_ID" ]; then
-    echo "Error: Could not find the Pages workflow for $RELEASE_COMMIT."
-    exit 1
-fi
-
-gh run watch "$RUN_ID" --repo arvindang/murmur --exit-status
-
 EXPECTED_LINK="Murmur-$VERSION.dmg"
-for _ in {1..30}; do
-    if curl --fail --silent --location https://arv.in/murmur/ | rg -q "$EXPECTED_LINK"; then
-        echo "Published Murmur $TAG successfully."
-        echo "Release: https://github.com/arvindang/murmur/releases/tag/$TAG"
-        echo "Website: https://arv.in/murmur/"
-        exit 0
-    fi
-    sleep 2
-done
-
-echo "Error: Pages deployed, but the live site does not link to $EXPECTED_LINK."
-exit 1
+wait_for_pages_build "$RELEASE_COMMIT" "$EXPECTED_LINK"
+wait_for_live_site "$EXPECTED_LINK"
+echo "Published Murmur $TAG successfully."
+echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+echo "Website: $MURMUR_SITE_URL"
