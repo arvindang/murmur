@@ -40,6 +40,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.murmur.app
         GENERATE_INFOPLIST_FILE: "NO"
         PRODUCT_NAME: Murmur
+        SWIFT_OBJC_BRIDGING_HEADER: Murmur/Murmur-Bridging-Header.h
       configs:
         Debug:
           CODE_SIGN_IDENTITY: "Apple Development"
@@ -60,9 +61,15 @@ targets:
       - package: Defaults
       - package: AXorcist
       - package: SwiftReadability
-    postBuildScripts:
-      - script: |
-          if [ "$CONFIGURATION" = "Debug" ]; then
-            tccutil reset Accessibility com.murmur.app
-          fi
-        name: Reset Accessibility TCC (Debug only)
+
+  MurmurTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MurmurTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.murmur.app.tests
+        GENERATE_INFOPLIST_FILE: "YES"
+    dependencies:
+      - target: Murmur

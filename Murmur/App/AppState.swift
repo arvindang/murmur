@@ -8,9 +8,14 @@ import Defaults
 final class AppState {
 
     private(set) var playbackState: PlaybackState = .idle
+    private(set) var isProcessing = false
     var statusMessage: String?
 
     private var activeEngine: any VoiceEngine
+    private var extractionTask: Task<Void, Never>?
+    private var extractionGeneration: UInt64 = 0
+    private var lastContentApplication: NSRunningApplication?
+    private var applicationActivationObserver: NSObjectProtocol?
 
     init() {
         // Migrate removed engine types to system
@@ -28,11 +33,18 @@ final class AppState {
         }
         setupVoiceEngine()
         setupHotkeys()
+        setupApplicationTracking()
+        AccessibilityExtractor.configureMessagingTimeout()
     }
 
     // MARK: - Actions
 
     func toggleReadAloud() {
+        if isProcessing {
+            cancelPendingExtraction(showStatus: true)
+            return
+        }
+
         switch playbackState {
         case .idle:
             readText()
@@ -44,41 +56,69 @@ final class AppState {
     }
 
     func readText() {
+        if isProcessing {
+            cancelPendingExtraction(showStatus: true)
+            return
+        }
+
         let maxLength = Defaults[.maxTextLength]
         let textSource = Defaults[.textSource]
 
         let useAX = textSource == .auto || textSource == .accessibility
         let useClipboard = textSource == .auto || textSource == .clipboard
 
-        // Browser path is async (URL fetch + Readability), handle separately
-        let app = useAX ? NSWorkspace.shared.frontmostApplication : nil
+        // Capture the source app before any asynchronous work so a menu click or
+        // another app activation cannot redirect extraction to the wrong window.
+        let app = useAX ? contentApplication() : nil
         let bundleId = app?.bundleIdentifier
         let isBrowser = bundleId.map { BrowserExtractor.isBrowser(bundleId: $0) } ?? false
 
         if isBrowser {
-            statusMessage = "Extracting text..."
-            Task {
+            extractionGeneration &+= 1
+            let currentGeneration = extractionGeneration
+            isProcessing = true
+            statusMessage = "Extracting from \(app?.localizedName ?? "browser")..."
+
+            extractionTask = Task { [weak self] in
+                guard let self else { return }
                 var result: ExtractionResult?
-                if let bundleId {
-                    result = await BrowserExtractor.extractText(bundleId: bundleId, appName: app?.localizedName, maxLength: maxLength)
+                if let bundleId, let app {
+                    result = await BrowserExtractor.extractText(
+                        bundleId: bundleId,
+                        appName: app.localizedName,
+                        processIdentifier: app.processIdentifier,
+                        maxLength: maxLength
+                    )
                 }
-                // Fall through to AX / clipboard if browser extraction returned nil
-                if result == nil {
-                    result = (useAX ? AccessibilityExtractor.extractText(maxLength: maxLength) : nil)
-                             ?? (useClipboard ? clipboardResult(maxLength: maxLength) : nil)
-                }
-                guard let result else {
-                    statusMessage = "No readable text found"
+
+                guard !Task.isCancelled, self.extractionGeneration == currentGeneration else {
                     return
                 }
-                buildStatusAndSpeak(result: result)
+
+                // Fall through to AX / clipboard if browser extraction returned nil
+                if result == nil {
+                    result = (useAX ? AccessibilityExtractor.extractText(application: app, maxLength: maxLength) : nil)
+                             ?? (useClipboard ? clipboardResult(maxLength: maxLength) : nil)
+                }
+
+                guard !Task.isCancelled, self.extractionGeneration == currentGeneration else {
+                    return
+                }
+
+                self.extractionTask = nil
+                self.isProcessing = false
+                guard let result else {
+                    self.statusMessage = "No readable text found"
+                    return
+                }
+                self.buildStatusAndSpeak(result: result)
             }
             return
         }
 
         // Non-browser path stays synchronous
         let result: ExtractionResult? =
-            (useAX ? AccessibilityExtractor.extractText(maxLength: maxLength) : nil) ??
+            (useAX ? AccessibilityExtractor.extractText(application: app, maxLength: maxLength) : nil) ??
             (useClipboard ? clipboardResult(maxLength: maxLength) : nil)
 
         guard let result else {
@@ -110,6 +150,7 @@ final class AppState {
     }
 
     func readClipboard() {
+        cancelPendingExtraction(showStatus: false)
         let maxLength = Defaults[.maxTextLength]
         guard let text = ClipboardExtractor.extractText(maxLength: maxLength) else {
             statusMessage = "No text in clipboard"
@@ -141,15 +182,19 @@ final class AppState {
     }
 
     func stopPlayback() {
+        cancelPendingExtraction(showStatus: false)
         activeEngine.stop()
+        statusMessage = "Stopped"
     }
 
     func previewVoice(id: String) {
+        cancelPendingExtraction(showStatus: false)
         configureActiveEngine(voiceOverride: id)
         activeEngine.speak("Hello! This is how I sound. I'm Murmur, your reading assistant.")
     }
 
     func switchEngine(to type: VoiceEngineType) {
+        cancelPendingExtraction(showStatus: false)
         activeEngine.stop()
         Defaults[.voiceEngineType] = type
 
@@ -166,7 +211,9 @@ final class AppState {
     // MARK: - Computed
 
     var menuBarIcon: String {
-        switch playbackState {
+        if isProcessing { return "ellipsis.circle" }
+
+        return switch playbackState {
         case .idle: "waveform"
         case .speaking: "waveform.circle.fill"
         case .paused: "pause.circle"
@@ -190,6 +237,53 @@ final class AppState {
                 self?.toggleReadAloud()
             }
         }
+    }
+
+    private func setupApplicationTracking() {
+        if let frontmost = NSWorkspace.shared.frontmostApplication,
+           isContentApplication(frontmost) {
+            lastContentApplication = frontmost
+        }
+
+        applicationActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication
+            else {
+                return
+            }
+
+            Task { @MainActor [weak self] in
+                guard let self, self.isContentApplication(application) else { return }
+                self.lastContentApplication = application
+            }
+        }
+    }
+
+    private func contentApplication() -> NSRunningApplication? {
+        if let frontmost = NSWorkspace.shared.frontmostApplication,
+           isContentApplication(frontmost) {
+            lastContentApplication = frontmost
+            return frontmost
+        }
+        return lastContentApplication
+    }
+
+    private func isContentApplication(_ application: NSRunningApplication) -> Bool {
+        application.processIdentifier != ProcessInfo.processInfo.processIdentifier &&
+        !application.isTerminated
+    }
+
+    private func cancelPendingExtraction(showStatus: Bool) {
+        guard isProcessing || extractionTask != nil else { return }
+        extractionGeneration &+= 1
+        extractionTask?.cancel()
+        extractionTask = nil
+        isProcessing = false
+        if showStatus { statusMessage = "Extraction cancelled" }
     }
 
     private func configureActiveEngine(voiceOverride: String? = nil) {

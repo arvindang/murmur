@@ -76,7 +76,7 @@ A zero-cloud macOS menu bar utility that reads aloud or summarizes content from 
 - [x] Read text from system pasteboard (clipboard) as the initial input method
 - [x] Menu bar dropdown option: "Read Clipboard"
 - [x] Strip HTML tags, normalize whitespace, handle common encoding issues
-- [x] Truncate to reasonable max length (~10,000 chars) with user-facing note
+- [x] Cap unusually large input at 100,000 characters while preserving normal full-length articles
 
 ### 1.3 — System Voice Baseline
 - [x] Implement VoiceEngine protocol

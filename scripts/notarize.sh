@@ -5,25 +5,27 @@ set -euo pipefail
 # Murmur — Build, Sign, Notarize, and Package for Distribution
 # =============================================================================
 #
-# Required env vars:
-#   TEAM_ID              — Apple Developer Team ID
-#   APPLE_ID             — Apple ID email for notarytool
-#   APP_SPECIFIC_PASSWORD — App-specific password for notarytool
+# Notarization authentication (choose one):
+#   KEYCHAIN_PROFILE                 — Recommended; profile created by
+#                                      `xcrun notarytool store-credentials`
+#   APP_STORE_CONNECT_API_KEY_PATH   — App Store Connect .p8 private key
+#   APP_STORE_CONNECT_KEY_ID         — App Store Connect key ID
+#   APP_STORE_CONNECT_ISSUER_ID      — Required for Team API keys
+#   APPLE_ID                         — Apple ID email
+#   APP_SPECIFIC_PASSWORD            — App-specific password
 #
 # Optional:
-#   KEYCHAIN_PROFILE     — If set, uses stored notarytool credentials instead
+#   TEAM_ID — Apple Developer Team ID (defaults to Murmur's distribution team)
 #
 # Usage:
-#   export TEAM_ID="XXXXXXXXXX"
-#   export APPLE_ID="you@example.com"
-#   export APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-#   ./scripts/notarize.sh
+#   KEYCHAIN_PROFILE="murmur-notary" ./scripts/notarize.sh
 # =============================================================================
 
 APP_NAME="Murmur"
 BUNDLE_ID="com.murmur.app"
 SCHEME="Murmur"
 CONFIG="Release"
+TEAM_ID="${TEAM_ID:-R9H5W4SA9U}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -45,14 +47,35 @@ DMG_PATH="$BUILD_DIR/$APP_NAME-${VERSION}.dmg"
 # Preflight checks
 # ---------------------------------------------------------------------------
 
-if [ -z "${KEYCHAIN_PROFILE:-}" ]; then
-    if [ -z "${TEAM_ID:-}" ] || [ -z "${APPLE_ID:-}" ] || [ -z "${APP_SPECIFIC_PASSWORD:-}" ]; then
-        echo "Error: Set TEAM_ID, APPLE_ID, and APP_SPECIFIC_PASSWORD (or KEYCHAIN_PROFILE)."
+NOTARY_AUTH_ARGS=()
+if [ -n "${KEYCHAIN_PROFILE:-}" ]; then
+    NOTARY_AUTH_ARGS=(--keychain-profile "$KEYCHAIN_PROFILE")
+elif [ -n "${APP_STORE_CONNECT_API_KEY_PATH:-}" ] && [ -n "${APP_STORE_CONNECT_KEY_ID:-}" ]; then
+    if [ ! -f "$APP_STORE_CONNECT_API_KEY_PATH" ]; then
+        echo "Error: App Store Connect API key not found: $APP_STORE_CONNECT_API_KEY_PATH"
         exit 1
     fi
+    NOTARY_AUTH_ARGS=(
+        --key "$APP_STORE_CONNECT_API_KEY_PATH"
+        --key-id "$APP_STORE_CONNECT_KEY_ID"
+    )
+    if [ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ]; then
+        NOTARY_AUTH_ARGS+=(--issuer "$APP_STORE_CONNECT_ISSUER_ID")
+    fi
+elif [ -n "${APPLE_ID:-}" ] && [ -n "${APP_SPECIFIC_PASSWORD:-}" ]; then
+    NOTARY_AUTH_ARGS=(
+        --apple-id "$APPLE_ID"
+        --team-id "$TEAM_ID"
+        --password "$APP_SPECIFIC_PASSWORD"
+    )
+else
+    echo "Error: Configure notarization authentication."
+    echo "Recommended one-time setup:"
+    echo "  xcrun notarytool store-credentials murmur-notary"
+    echo "    --apple-id you@example.com --team-id $TEAM_ID"
+    echo "Then run with KEYCHAIN_PROFILE=murmur-notary."
+    exit 1
 fi
-
-TEAM_ID="${TEAM_ID:?}"
 
 echo "==> Cleaning build directory..."
 rm -rf "$BUILD_DIR"
@@ -144,17 +167,10 @@ codesign --force --sign "Developer ID Application: ARVIN DANG ($TEAM_ID)" "$DMG_
 
 echo "==> Submitting for notarization..."
 
-if [ -n "${KEYCHAIN_PROFILE:-}" ]; then
-    xcrun notarytool submit "$DMG_PATH" \
-        --keychain-profile "$KEYCHAIN_PROFILE" \
-        --wait
-else
-    xcrun notarytool submit "$DMG_PATH" \
-        --apple-id "$APPLE_ID" \
-        --team-id "$TEAM_ID" \
-        --password "$APP_SPECIFIC_PASSWORD" \
-        --wait
-fi
+xcrun notarytool submit "$DMG_PATH" \
+    "${NOTARY_AUTH_ARGS[@]}" \
+    --wait \
+    --timeout 30m
 
 # ---------------------------------------------------------------------------
 # Step 9: Staple

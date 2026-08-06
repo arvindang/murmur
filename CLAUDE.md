@@ -11,6 +11,9 @@ xcodegen generate
 # Build
 xcodebuild -project Murmur.xcodeproj -scheme Murmur -configuration Debug build
 
+# Test
+xcodebuild -project Murmur.xcodeproj -scheme Murmur -destination 'platform=macOS' test CODE_SIGNING_ALLOWED=NO
+
 # Clean build
 xcodebuild -project Murmur.xcodeproj -scheme Murmur clean build
 
@@ -18,7 +21,7 @@ xcodebuild -project Murmur.xcodeproj -scheme Murmur clean build
 xcodebuild -project Murmur.xcodeproj -scheme Murmur -resolvePackageDependencies
 ```
 
-No test targets exist yet.
+Unit tests live in `MurmurTests` and use XCTest.
 
 ## Architecture
 

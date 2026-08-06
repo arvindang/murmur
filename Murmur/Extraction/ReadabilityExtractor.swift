@@ -3,8 +3,17 @@ import SwiftReadability
 
 enum ReadabilityExtractor {
 
+    private static let maximumHTMLBytes = 5 * 1_024 * 1_024
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 5
+        configuration.timeoutIntervalForResource = 10
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }()
+
     /// Fetches HTML from a URL and extracts readable text content using Mozilla's Readability algorithm.
-    static func extract(from url: URL, maxLength: Int = 10_000) async -> String? {
+    static func extract(from url: URL, maxLength: Int = 100_000) async -> String? {
         guard let scheme = url.scheme, ["http", "https"].contains(scheme) else { return nil }
 
         // Skip non-HTML resources
@@ -19,7 +28,10 @@ enum ReadabilityExtractor {
             forHTTPHeaderField: "User-Agent"
         )
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        guard !Task.isCancelled,
+              let (data, response) = try? await session.data(for: request),
+              !Task.isCancelled,
+              data.count <= maximumHTMLBytes,
               let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode),
               let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type"),
