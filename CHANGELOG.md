@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.2.0 — 2026-08-06
+
 ### Fixed
 
 - Long articles now read up to 100,000 characters instead of silently stopping at 10,000.
